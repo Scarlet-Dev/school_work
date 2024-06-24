@@ -1,0 +1,466 @@
+---
+title: 'Tracking the Comment Sentiments of Popular Political Subreddits Before and After January 6th Insurrection'
+shorttitle: 'Presidential Insurrection Reddit'
+author:
+    - name          : "Ankita Chaturvedi"
+      affiliation   : "1"
+      corresponding : yes    # Define only one corresponding author
+      address       : "326 Market St, Harrisburg, PA 17101"
+    
+    - name          : "Akane Simpson"
+      affiliation   : "1"
+      corresponding : yes    # Define only one corresponding author
+      address       : "326 Market St, Harrisburg, PA 17101"
+
+      
+    - name          : "FNU Girish Balakrishnan"
+      affiliation   : "1"
+      corresponding : yes    # Define only one corresponding author
+      address       : "326 Market St, Harrisburg, PA 17101"
+
+affiliation:
+  - id            : "1"
+    institution   : "Harrisburg University of Science & Technology"
+
+floatsintext      : no
+linenumbers       : no
+draft             : no
+mask              : no
+
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+
+classoption       : "man"
+output            : papaja::apa6_pdf
+bibliography      : references.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+library("papaja")
+r_refs("references.bib")
+```
+
+## Introduction
+
+In a democracy, the people play a decisive role in determining the course of political changes. Every major incident that happens in the public domain could influence the sentiment of voters towards political leaders and alter the results of elections. Thus, it is extremely important to understand changes in public reactions when any major events occur so that corrective actions can be taken when these reactions tilt more towards the negative side. With the advent of social media, it has become easier to track these reactions and predict the outcome of various events by analyzing the comments from people on various social media platforms like Twitter, Reddit etc.
+
+The drawback of this approach is that the social media population is only a minor part of the larger public and many of the comments on the social media platforms could be unfiltered and biased which could make the predictions erroneous. However, by selecting a large and diverse sample of comments from across multiple platforms, these biases could be reduced considerably. The valuable outcome of this data analysis is obtaining a good grasp of the positive or negative reactions of the community as a whole and gaining insights into key topics that elicit diverse reactions. It is owing to these reasons that we decided to explore the impact of a major inciting incident like the attack at the Capitol on Jan 6, 2022, by looking at whether this incident triggered favorable or unfavorable public reactions with reference to Ex-president Donald Trump.
+
+As part of the preparation for this project, we referred to a considerable number of literary articles related to data modelling techniques such as topic modelling using LDA (Latent Dirichlet Allocation) or LSA (Latent Sentiment Analysis), sentiment analysis using ABSA (Aspect Based Sentiment Analysis) or ASUM (Aspect Sentiment Unification Model), text mining etc., on the one side and simultaneously explored social media data sources such as Twitter, Reddit, Facebook etc. While looking at prior analysis on similar research problems, we observed that in majority of the cases topic modelling was the preferred approach to identify recurring themes particularly to label customer reviews in situations like understanding patient experiences [@bahja2016identifying] or product reviews .
+
+Similarly, to tackle classification problems such as segregating positive comments from negative comments specifically in cases of high dimensionality the LDA technique was employed to improve the predicative performance of text classifiers [@onan2016lda]. Specifically, exploring political studies we found that a favorite research topic was the analysis around 2016 or 2020 US presidential elections outcome using public comments mainly in the form of tweets on the twitter platform [@ali2022large] or by assessing community interaction effects on the Reddit platform [@de2021no]. A couple of studies drilled deeper into the presidential candidate stylistic patterns in terms of written tweets or oral communication using text mining and other linguistic techniques [@savoy2022trump]. A common aspect across all these studies was to understand the changes in behavior of people towards a presidential candidate during a given period such as a few months before and after election day.
+
+The underlying assumption is that there is a definitive effect from various incidents, written or oral communication from the candidates that triggers changes in behavior of the people towards a presidential candidate. Using our project, we question this very assumption and understand if an incident such as the Capitol attack on January 6, 2021, had serious implications on the public opinion towards ex-president Donald Trump. Using the results of our study, we want to conclude whether public opinion can be diverted using such adverse events. The results can be further extrapolated to support the notion that opinions from various groups of people (supporters or detractors) can be engineered using planned incidents to attain a pre-determined outcome. This would have a massive impact on the design of PR campaigns to draw favorable public reactions or purge adverse reactions. We feel the value of our research study would go beyond a typical sentiment classification and would greatly help in providing psychological depth to future work on the topics related to political studies.
+
+## Research Question
+
+America's 45^th^ President Mr. Donald Trump's average approval rating during his presidential term between 2017-2021 had been 41% [@gallupPresidentialApproval]. But after the morning of January 6^th^ 2021, when the US Capitol was attacked by individuals claiming to be his supporters, there was a shift in his approval rating that went down by 6 points to a career low of 34, according to -@gallupPresidentialApproval. The same report also mentions that the job approval rating during the last week was still at a relative high of 82 from individuals who identified themselves to be of support to Republican Party. Using comments made by general population on the social media website 'Reddit', the goal of this analysis is to understand whether there was any change in opinions expressed on social media about Mr. Trump, as an aftermath of the attack on US Capitol. The data was queried specifically on subreddits dedicated to Trump's party and brand of politics (/r/Republicans, /r/conservatives) as well as the subreddit '/r/uspolitics' to gather opinions of people aware of the topic.
+
+**Research Question:** Was there a shift in opinion expressed on social media regarding Mr. Donald Trump after the attack on US Capitol on January 6, 2021?
+
+## Method
+
+The proposed solution we will need to access Reddit comments made before the January 6th insurrection and comments made after. The range we selected is between October 2019 and March 2020. This gives a good range of comments that may cover topics sentiments before, during and after the insurrection incident. After the data is retrieved, we will preprocess the text data, create a corpus from the cleaned data and finally perform a series of NLP analysis on the corpus and cleaned data.
+
+The sentiment analysis creates a measurable variable where the generated polarity could be tracked over time. The idea here is that we expect to see changes in comment sentiments as the approach the January 6th incident. Additionally, we created a classification model where the model would predict if a comment was made before the major incident or after. The topic modelling analysis would also support the sentiment analysis by showcasing the evolving themes around Ex President Donald Trump. It is expected that we will see themes around the election and debates between candidates in October, then themes around election fraud in November till January and finally themes about the January 6th incident after.
+
+## Gathering the Data
+
+To source the Reddit comments, we initiated a search using the Python module, PRAW, to query the Reddit API to return comments from specified subreddits. We were able to receive a return from the API, but the PRAW module lacks easy to use filtering options. Instead, we used a similar module to PRAW called PMAW which uses the PushShift API as a middleman between the user and Reddit API. This module allowed for more fine-tuned filtering options. However, Reddit has changed its data sharing and API policies which limits the use of third-party applications and API from accessing Reddit data.
+
+Instead we opted to use archived data from -@academictorrent2023. The files on this site contain compressed NJSON data. These files are then uncompressed and converted into CSV files.
+
+## Data Overview
+
+After the data has been processed and stored in a local database, we created a SQL view that unions the table with our search query. The query included three conditions:
+
+-   Select comments that contained the words 'donald', 'trump' and election'
+
+-   Select only the subreddits 'Conservative', 'republicans' and 'uspolitics'
+
+-   Only select a maximum of 10 rows per day
+
+-   Union the tables as most comment would be distinct
+
+We then queried the view by using Apache Spark and processed the table in a Python script. After the database connection, we then collected the rows and loaded them in memory as a DataFrame. Finally, we exported the data to a CSV file, for later processing.
+
+After our initial search we performed a more refined search that includes more keywords from our word cloud and extracted as a CSV file. In total, 1563 unique comments were collected across 182 days (about 6 months) of data.
+
+## Data Preprocessing
+
+The following processes were performed on the queried data:
+
+-   HTML and hyperlinks were removed
+
+-   Text was transformed into lowercase
+
+-   Numbers were removed from comments
+
+-   Punctuation are removed
+
+-   Stop words were also removed
+
+This cleaned data was then appended to the table and later used in our analysis section.
+
+## Analysis
+
+```{r libaries, warning=FALSE, include=FALSE}
+library(reticulate)
+library(tm)
+library(topicmodels)
+library(tidyverse)
+library(tidytext)
+library(slam)
+library(dplyr)
+library(ngram)
+library(stringi)
+library(stringr)
+library(tidyr)
+library(widyr)
+library(ggplot2)
+library(igraph)
+library(ggraph)
+library(textdata)
+library(lubridate)
+library(wordcloud)
+```
+
+```{r read data, include=FALSE}
+##r chunk
+set.seed(92640)
+df <- read.csv("CLEANED_jan6DF.csv")
+df$created_on <- mdy(df$created_on)
+df <- df[order(df$created_on),]
+df <- df %>% mutate(ID = 1:n()) 
+```
+
+```{r cleanup, include=FALSE}
+cleanup = theme(panel.grid.major = element_blank(), 
+                panel.grid.minor = element_blank(), 
+                panel.background = element_blank(), 
+                axis.line.x = element_line(color = "black"),
+                axis.line.y = element_line(color = "black"),
+                legend.key = element_rect(fill = "white"),
+                text = element_text(size = 10))
+
+df$processed = stri_trans_general(str = df$cleaned_body, id = "latin-ascii")
+df$processed = apply(as.matrix(df$processed), 1, function(x) 
+    preprocess(x, remove.numbers = TRUE))
+df$processed = gsub('a€™', '\'', df$processed)
+df$processed = gsub('a€¢', ' ', df$processed)
+
+texts <- tibble(id = df$ID,
+                        text = df$processed)
+
+tokenized_text <- texts %>% 
+  unnest_tokens(word, text) %>% 
+  anti_join(stop_words)
+
+tokenized_text <-  tokenized_text[-grep("donald", tokenized_text$word), ] 
+tokenized_text <-  tokenized_text[-grep("president", tokenized_text$word), ] 
+
+```
+
+**1. Topic Modelling**
+
+We start our analysis by creating a Term-Document Matrix from a corpus of the column 'cleaned_body', which has cleaned comments from the reddit posts. We then apply weights to the terms so we can exclude terms that only appear once, or appear in more than 95% of the document. Once these terms have been excluded, we create a basic LDA Gibbs model starting with 5 models, but ultimately deciding on 7.
+
+```{r}
+import_corpus = Corpus(VectorSource(df$cleaned_body))
+import_mat = 
+  DocumentTermMatrix(import_corpus,
+           control = list(stopwords = TRUE, #remove stop words
+                          minWordLength = 3, #cut out small words
+                          removeNumbers = TRUE, #take out the numbers
+                          removePunctuation = TRUE
+                          ))
+import_weight = tapply(import_mat$v/row_sums(import_mat)[import_mat$i], 
+                       import_mat$j, 
+                       mean) *
+  log2(nDocs(import_mat)/col_sums(import_mat > 0))
+
+import_mat = import_mat[ , import_weight <= 0.95]
+import_mat = import_mat[ row_sums(import_mat) > 0, ]
+
+#LDA model
+k = 7 
+SEED = 13 
+
+LDA_gibbs = LDA(import_mat, k = k, method = "Gibbs", 
+                control = list(seed = SEED, burnin = 1000, 
+                               thin = 100, iter = 1000))
+```
+
+The top 15 terms from each topic are:
+
+```{r terms}
+terms(LDA_gibbs,15)
+```
+
+Based on these terms, we can observe that the themes are around either alleged influences on the elections in 2020, or around the central themes that Mr. Trump based his electoral campaign on. Topic 3 and 7 indicate towards influence of race, Topic 1 nods to the attack on US Capitol and Topic 5 is conversation around the foreign intelligence allegations leveled on the then President.
+
+**2. Network Modelling**
+
+Once we had the themes and top terms in the data, we explored the relationship and structure of the terms in the data using word pairs and plotted a model based on that.
+
+```{r, warning=FALSE, message=FALSE}
+##r chunk
+df$processed = stri_trans_general(str = df$cleaned_body, id = "latin-ascii")
+df$processed = apply(as.matrix(df$processed), 1, function(x) 
+    preprocess(x, remove.numbers = TRUE))
+df$processed = gsub('a€™', '\'', df$processed)
+df$processed = gsub('a€¢', ' ', df$processed)
+
+texts <- tibble(id = df$ID, text = df$processed)
+
+tokenized_text <- texts %>% 
+  unnest_tokens(word, text) %>% 
+  anti_join(stop_words)
+
+#excluding words that have an obvious relationship and 
+# don't add anything to the analysis
+tokenized_text <-  tokenized_text[-grep("donald", tokenized_text$word), ] 
+tokenized_text <-  tokenized_text[-grep("president", tokenized_text$word), ] 
+
+tokenized_word_pairs <- tokenized_text %>% 
+    pairwise_count(word, id, sort = TRUE, upper = FALSE)
+
+tokenized_word_pairs %>%
+  filter(n >= 150) %>%
+  graph_from_data_frame() %>%
+  ggraph(layout = "fr") + 
+  geom_edge_link(aes(edge_alpha = n, edge_width = n), edge_colour = "blue") +
+  geom_node_point(size = 5) +
+  geom_node_text(aes(label = name), repel = TRUE, 
+                 point.padding = unit(0.2, "lines")) +
+  theme_void()
+
+head(tokenized_word_pairs, 10) 
+```
+
+When analyzing the top 10 word-pairs in the data, most of these connections are expected but it is interesting to note that pair-count of election:fraud and trump:fraud feature in the top 10 indicating the strength of these pairs and the dominant conversation around the voter fraud allegations by the then President.
+
+**3. Words describing positive and negative sentiments in the dataset:**
+
+To better understand what sentiment these top terms represented, we used the sentiment lexicon "NRC" and explored the top terms to describe positive and negative emotions in the data:
+
+-   What words describe negative emotions in the data:
+
+```{r, message=FALSE}
+nrc_neg <- get_sentiments("nrc") %>% 
+  filter(sentiment == "negative")
+
+tokenized_text %>%
+  inner_join(nrc_neg) %>%
+  count(word, sort = TRUE)
+
+```
+
+-   What words describe positive emotions in the data:
+
+```{r, message=FALSE}
+ 
+nrc_pos <- get_sentiments("nrc") %>% 
+  filter(sentiment == "positive")
+
+tokenized_text %>%
+  inner_join(nrc_pos) %>%
+  count(word, sort = TRUE)
+```
+
+**4. Logistic Regression and Predicting period of comments**
+
+In this section we employ Python as the language to clean and process our input data. We then include a new column called 'Groups' which labels the time of the comment being before Jan 6 or on and after that date of attack on Capitol.
+
+\
+Since the dataset was imbalanced in regards to the variable 'Groups', we also subset a random set of 557 rows from each group to balance the data in hopes of an unbiased model.
+
+```{python basics}
+import pandas as pd
+import nltk
+import gensim
+from nltk.corpus import abc
+
+import numpy as np
+from bs4 import BeautifulSoup
+import re
+from nltk.corpus import stopwords
+import nltk
+from sklearn.metrics import classification_report
+from sklearn.metrics import accuracy_score
+import gensim
+from gensim.models.fasttext import FastText
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+import random
+
+df_data = pd.read_csv('CLEANED_jan6DF.csv')
+df_data['created_on'] = pd.to_datetime(df_data['created_on'])
+df_data['Group'] = df_data['created_on'].apply(lambda x: 'PRE' 
+if x <= pd.Timestamp('2021-01-06') else 'POST')
+
+REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]') 
+BAD_SYMBOLS_RE = re.compile('[^0-9a-z #+_]') 
+STOPWORDS = set(stopwords.words('english')) 
+
+#cleanup
+def clean_text(text):
+    text = BeautifulSoup(text, "lxml").text 
+    text = text.lower() 
+    text = REPLACE_BY_SPACE_RE.sub(' ', text) 
+    text = BAD_SYMBOLS_RE.sub('', text) 
+    text = ' '.join(word for word in text.split() if word not in STOPWORDS) 
+    return text
+
+random.seed(13)
+#pre-process data  
+df_data['cleaned_body'] = df_data['cleaned_body'].apply(clean_text)
+df1 = df_data.query('(Group == "PRE")').sample(n=557)
+df2 = df_data.query('(Group == "POST")').sample(n=557)
+frame = [df1,df2]
+df = pd.concat(frame)
+```
+
+Here we use the train_test_split function from scikit-learn library to split our focus variables 'Groups' and 'Cleaned_body' into training and testing sets using a 80-20 split, where 80% of data is used for training the Regression model while 20% is used for testing the accuracy and other measures.
+
+Resting our predictions with the tags 'PRE' and 'POST', we predict the 'Groups' variable using the testing dataset and find the accuracy to be \~50%.
+
+```{python analysis}
+X = df['cleaned_body']
+y = df['Group']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20,
+random_state = 42)
+
+tokenized_train = [nltk.tokenize.word_tokenize(text)
+                   for text in X_train.to_list()]
+tokenized_test = [nltk.tokenize.word_tokenize(text)
+                   for text in X_test.to_list()]
+                   
+ft_model = FastText(tokenized_train, vector_size=100, window=4, 
+                    min_count=2, epochs=8, workers=4)
+                    
+def document_vectorizer(corpus, model, num_features):
+  vocabulary = set(model.wv.index_to_key)
+  def average_word_vectors(words, model, vocabulary, num_features):
+    feature_vector = np.zeros((num_features,), dtype="float64")
+    nwords = 0.
+    for word in words:
+      if word in vocabulary: 
+        nwords = nwords + 1.
+        feature_vector = np.add(feature_vector, model.wv[word])
+      if nwords:
+        feature_vector = np.divide(feature_vector, nwords)
+    return feature_vector
+  features = [average_word_vectors(tokenized_sentence, model, vocabulary,
+  num_features)
+                    for tokenized_sentence in corpus]
+  return np.array(features)
+
+avg_ft_train_features = document_vectorizer(corpus=tokenized_train, 
+model=ft_model, num_features=100)
+
+avg_ft_test_features = document_vectorizer(corpus=tokenized_test, 
+model=ft_model, num_features=100)  
+
+logreg = LogisticRegression(solver='lbfgs', multi_class='ovr', max_iter=10000)
+logreg = logreg.fit(avg_ft_train_features, y_train)
+y_pred = logreg.predict(avg_ft_test_features)
+
+my_tags = ["PRE", "POST"]
+print('accuracy %s' % accuracy_score(y_pred, y_test))
+print(classification_report(y_test, y_pred,target_names=my_tags))
+```
+
+**5. Sentiment over time**
+
+To better understand the result, we also performed sentiment analysis with tidy data from -@Silge_Robinson_2022 on the data using the NRC lexicon [@mohammad13]. Since the 'ID' field is sorted based on 'created_on', using ID as an index produced results showing sentiments over time.
+
+```{r}
+df_sentiment <- tokenized_text %>%
+  inner_join(get_sentiments("nrc")) %>%
+  count(word, index = id, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+ggplot(df_sentiment, aes(index, sentiment)) +
+    geom_col(show.legend = FALSE, color = "lightgreen") + cleanup
+```
+
+Overall, we notice that the plot seems to have no specific trend that undergoes any observable change, and actually resembles a seasonal plot, at best. The comments around Jan 6^th^, 2021 fall under the index range 990-1000 and the plot clearly indicates there were no real shift in sentiments around that time frame.
+
+**6. Word Cloud**
+
+Since the focus of this research was centered around the attack on US Capitol, we created a wordcloud to be able to visualize where terms around that topic might rank as compared to the central theme of the conversations on social media.
+
+```{r, message=FALSE}
+tokenized_text %>%
+      anti_join(stop_words) %>%
+      count(word) %>%
+      with(wordcloud(word, n, max.words = 100))
+```
+
+The word cloud shows issues like the attack on capitol or allegations of collusion with Russia hardly generate any conversation among the sub-reddits primarily centered around President Trump. Even the word 'fraud' is prominent only in relation to the ballot fraud alleged by Mr. Trump, and not the fraud allegation on Mr. Trump.
+
+## Discussion
+
+Summarize the results from your study in as plain of language as possible. How does this relate to previous literature? What have we learned from you doing this analysis/study?
+
+Describe the implications of your study and what the practical applications of the findings might be. Here you want to consider what actions might your readers (or company) take based on your conclusions.
+
+The key observations from the topic modelling analysis include the following:
+
+After assessing the words in each of 7 topics, we were able to categorize the topics as mentioned below:
+
+-   Topic 1: centered around violent attacks from trump supporters at the Capitol on Jan 6
+
+-   Topic 2: centered around the legality of the electoral results that triggered the violence
+
+-   Topic 3: centered around racial influences on the bi-partisan outlook
+
+-   Topic 4: centered around election fraud allegations put forth by ex-president Trump
+
+-   Topic 5: centered around foreign influence (specifically Russian intelligence) impact on the election
+
+-   Topic 6: centered around the public reaction and beliefs with reference to the election
+
+-   Topic 7: centered once again around the racial influences (specifically of the black community) on the election.
+
+The most common words from the chart also indicate that majority of the words centered around president Trump, republican supporters and the alleged election fraud which triggered the violent reaction from the public on January 6, 2021. This aligns with the fact that continuous allegations of electoral fraud did bring about adverse public reactions.
+
+From the network analysis diagram, we do see that there are 3 close word pair interactions as seen between -"Trump" and "Election", -"Trump" & "People" and -"Election" & "People" which perfectly aligns with the assumption that Trump's allegations on election fraud did significantly influence opinion of people towards the ex-president.
+
+Moving over to the word2vec model used to analyze the public sentiment, we see that the model had an overall accuracy of 53.05% with the pre-incident data model having a precision of 53% and post-incident data model having a precision of 75%. This means that the model was able to predict post-incident sentiment with better precision that pre-incident. Similarly, the chances of a false-positive is higher pre-incident as seen with a 99% recall percentage compared to the 3% recall observed with post-incident.
+
+The word association outcome suggests that "Fraud", "Vote" and "Lost" were the top 3 words that indicated negative public sentiment which makes sense as majority of the allegations were around election fraud and voter fraud that led to the loss of republicans in the presidential election.
+
+Similarly, the top 3 words indicating positive sentiment include "Vote"., "ballot" and "Legal" which shows that a section of the public still showed confidence in the legality of the ballot and vote counting process.
+
+The sentiment trend plotted on the ggplot also clearly shows that there is a constant fluctuation of public sentiment from positive to negative all through the selected time period indicating that the public sentiment was not moved in a specific direction owing to any incident that happened in this time period and specifically even around Jan 6, 2021.
+
+Finally, the word cloud indicates that majority of the public interactions and comments centered around "Trump", "Election", "People", "Republican", "Fraud", "Vote" and "Biden" while other narratives around Russian influence and other conspiracy theories did not find much traction in these interactions.
+
+Based on all the above findings, we conclude that there were no significant changes in the opinion of republican party followers towards Donald Trump after the Capitol attack on January 6, 2021. This disproves our original research hypothesis that major incidents can have a significant influence in changing public reaction towards a person. On further analysis, we feel that while incidents like the Capitol attack can impact individual reactions towards a person like Trump, the community balances out these adverse reactions and thus no specific trend towards a positive or negative sentiment is observed. This could be due to the interaction effect between various elements within a community of people (like the republican party base).
+
+Considering the data limitations associated with this study, there is a definite scope to further continue this study with added scope (in terms of more diverse data sources). As a direct follow up to this study, we feel there could be additional research on the magnitude of these interaction effects and at what point these interactions could positively or negatively influence the public sentiment. Using this, we would be able to accurately predict how targeted events could become an effective PR campaign mechanism and help elicit desired public reactions in the short term. Also, we encourage future researchers to use this framework beyond political domain to study consumer reaction change owing to significant changes in other sectors like retail, hospitality, airlines etc.
+
+## Credit Guidelines
+
+-   Developed Research Question - Ankita Chaturvedi
+-   Acquired Data - Akane Simpson
+-   Analyzed Data - Ankita Chaturvedi
+-   Researched Related Work - Akane Simpson, Girish Balakrishnan, Ankita Chaturvedi
+-   Wrote Introduction - Girish Balakrishnan
+-   Wrote Method - Akane Simpson
+-   Wrote Analysis/Results - Ankita Chaturvedi
+-   Wrote Discussion - Girish Balakrishnan
+-   Revisions/Edits - Akane Simpson
+
+\newpage
+
+## References
+
+::: {#refs custom-style="Bibliography"}
+:::

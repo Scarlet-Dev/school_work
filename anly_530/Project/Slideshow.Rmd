@@ -1,0 +1,110 @@
+---
+title: "Predicting the Availability of Alternative Fueling Stations in Pennsylvania"
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: powerpoint_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r source files, include=FALSE}
+source("PreProcessing.R", local = knitr::knit_global())
+source("Algorithms_Evaluations.R", local = knitr::knit_global())
+# or sys.source("your-script.R", envir = knitr::knit_global())
+```
+
+# Project Overview
+
+This study seeks to evaluate the best prediction model based on availability of alternative fuel stations based on ZIP Code and Median Salary of different number of Earners in the state of Pennsylvania. The hope for this model is to help companies and government make informed decisions when expanding infrastructure for alternative fueling stations.
+
+## The Process
+
+1.  Find the Data
+    -   Finding the data tool several hours and well articulated searches to find the correct match
+2.  Clean the Data
+    -   Some of the data sets found were all in text form with special characters strewn about. Some datasets required manual review before being imported into the project(2hrs)
+3.  Merge the Data
+    -   All of the datasets could not be used on their own but by using a common feature (ZIP, Count) we were able to join them together (2\~4hrs)
+4.  Process the Data
+    -   Once the data are joined we can perform our data processing. We performed the usual steps (missing values and outliers) then we normalized the data and export for the next step. (1hr)
+5.  Split the Data
+    -   Using the normalize data we created three training and testing sets under seed 876. For each sets of data we either do nothing and leave the data as is, feature selection using correlation or performed PCA. Each set was exported as a csv file for next step. (2hr)
+6.  Train the Models
+    -   Initially, we created separate script files for each algorithm but later decided to create a function that will perform the neccesary task for this. Now the modeling for all algorithms is under a minute processing time (3hr)
+7.  Evaluate the Models
+    -   Using the same function, we added the evaluation portion and modified it to return the results from each eval process. (1hr)
+
+Based on the volume and issues w
+
+## Background
+
+In @akanealternative2022 the researchers performed a exploratory analysis on aggregated data to determine the availability of alternative fueling station using New York as an example. What they discovered was the there was a a strongly positive relationship between median salary within areas of New York.
+
+## The Data
+
+Below are a list of links to the datasets that were found for this project. Some of the links require manual queries such as the census link. On the census link we searched for median salary, then filtered on ZIP code of Pennsylvania and transpose the table.
+
+-   [Alternative Fuel Stations](https://afdc.energy.gov/data_download/alt_fuel_stations_format)
+
+-   [Median Salary Data from US Census](https://data.census.gov/cedsci/table?q=median%20income&g=0400000US42%248600000&y=2020&tid=ACSST5Y2020.S1903)
+
+-   [Vehicle registrations in PA by ZIP Code](https://s3.amazonaws.com/tmp-map/dot/vpic/pa-registered-vehicles-by-fuel-type-and-zip-code.html)
+
+-   [Zip Code County cross reference in PA](https://www.unitedstateszipcodes.org/pa/)
+
+## Preprocessing
+
+After procuring the datasets we began with data cleaning using @tidyverse and @stringr. We use the pipe functions and several transformation functions to change the shape, rename, mutate, combine and group tables together. For the issues with extracting string data we used @stringr and other native R functions to search, replace and convert observation into appropriate data type.
+
+Some datasets required more manual processing such as the the vehicle registration map file, data from the census and zip code. Once manually processed the data is then imported as a csv file for more data manipulation.
+
+## Summary Statistics
+
+Our models were evaluated using a three algorithm step to identify the best model-features combination. The Zip Code was a consistent feature across all training and datasets. Below are the summary tables for the model evaluation.
+
+```{r algo1, echo=FALSE}
+rt1 <- results_1 %>% 
+  select(Accuracy, Kappa, Precision, Recall) %>% 
+  round(2)
+```
+
+`r knitr::kable(rt1, caption = "Table summary of Algorithm #1 Model Evaluations")`
+
+```{r algo2, echo=FALSE}
+rt2 <- results_2 %>% 
+  select(Accuracy, Kappa, Precision, Recall) %>% 
+  round(2)
+
+```
+
+`r   knitr::kable(rt2, caption = "Table summary of Algorithm #2 Model Evaluations")`
+
+```{r algo3, echo=FALSE}
+rt3 <- results_3 %>% 
+  select(Accuracy, Kappa, Precision, Recall) %>% 
+  round(2)
+```
+
+`r knitr::kable(rt3, caption = "Table summary of Algorithm #3 Model Evaluations")`
+
+![Dotplot of Algorithm 1](images/375eb26f-cd58-4b1c-8381-ce552f0e448e.png)
+
+![Dotplot of Algorithm 2](images/c2bbae55-cc51-43ef-aee5-cc34e83cf632.png)
+
+![Dotplot for Algorithm 3](images/c81000d4-edc0-4adf-91fb-cd85e1964e2d.png)
+
+## Data Analysis
+
+From the tables above the best model that should be used in AFS availability prediction if the Random Forest from Algorithm 3. This may due to features with the best correlation being kept thanks to the PCA.
+
+## Additional Info
+
+N/A
+
+## Lessons Learned
+
+-   Understood the step by step process of creating and comparing machine learning problems
+
+-   Now proficient in selecting models based on the available data

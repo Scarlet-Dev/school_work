@@ -1,0 +1,349 @@
+---
+title: 'Assignment #9'
+subtitle: 'Chapter 11'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(rethinking)
+set.seed(22)
+
+```
+
+## Chapter 11 - God Spiked the Integers
+
+This chapter described some of the most common generalized linear models, those used to model counts.  It is important to never convert counts to proportions before analysis, because doing so destroys information about sample size.  A fundamental difficulty with these models is that 
+parameters are on a different scale, typically log-odds (for binomial) or log-rate (for Poisson), than the outcome variable they describe.      Therefore computing implied predictions is even more important than before.
+
+Place each answer inside the code chunk (grey box).  The code chunks should contain a text response or a code that completes/answers the question or activity requested. Make sure to include plots if the question requests them.  
+
+Finally, upon completion, name your final output `.html` file as: `YourName_ANLY505-Year-Semester.html` and publish the assignment to your R Pubs account and submit the link to Canvas. Each question is worth 5 points.
+
+## Questions
+
+**11-1.** As explained in the chapter, binomial data can be organized in aggregated and disaggregated
+forms, without any impact on inference. But the likelihood of the data does change when the data are
+converted between the two formats. Can you explain why?
+
+```{r 11-1}
+# Binomial and Poisson models can be aggregated/disaggreagted without changing assumption but this is not always the case. Certain binomial (beta) and Poisson models (gamma) will apply an unobserved parameter to each observation. From this unobserved parameter, results from a log-likelihood calculation will be changes.
+```
+
+
+**11-2.** Use quap to construct a quadratic approximate posterior distribution for the chimpanzee
+model that includes a unique intercept for each actor, m11.4 (page 330). Plot and compare the quadratic
+approximation to the posterior distribution produced instead from MCMC. Can you explain both
+the differences and the similarities between the approximate and the MCMC distributions? Relax the
+prior on the actor intercepts to Normal(0,10). Re-estimate the posterior using both ulam and quap. Plot and compare the posterior distributions.
+Do the differences increase or decrease? Why?
+
+```{r 11-2 data}
+data("chimpanzees")
+chimp <- chimpanzees
+chimp$recipient <- NULL
+chimp$side <- chimp$prosoc_left + 1
+chimp$cond <- chimp$condition + 1
+rm(chimpanzees)
+
+chimp.list <- list(
+  pulled_left = chimp$pulled_left,
+  actor = chimp$actor,
+  side = chimp$side,
+  cond = chimp$cond
+)
+```
+
+
+```{r 11-2 quap}
+mq11.2 <- quap(
+  alist(
+    pulled_left ~ dbinom(1, p),
+    logit(p) <- a[actor] + bs[side] + bc[cond],
+    a[actor] ~ dnorm(0, 10),
+    bs[side] ~ dnorm(0, 0.5),
+    bc[cond] ~ dnorm(0, 0.5)
+  ), data = chimp.list
+)
+```
+
+```{r}
+precis(mq11.2, 2)
+```
+
+
+```{r, warning=FALSE, results='hide'}
+mu11.2 <- ulam(
+  alist(
+   pulled_left ~ dbinom(1, p),
+    logit(p) <- a[actor] + bs[side] + bc[cond],
+    a[actor] ~ dnorm(0, 10),
+    bs[side] ~ dnorm(0, 0.5),
+    bc[cond] ~ dnorm(0, 0.5)
+  ), data = chimp.list, log_lik = TRUE
+)
+```
+
+```{r}
+precis(mu11.2, 2)
+```
+
+```{r}
+pairs(mq11.2)
+```
+
+
+```{r}
+pairs(mu11.2)
+```
+
+
+```{r}
+# There is no real significant difference between the two models.
+```
+
+**11-3.** Revisit the data(Kline) islands example. This time drop Hawaii from the sample and refit
+the models. What changes do you observe?
+
+```{r 11-3 orig models, results='hide'}
+data("Kline")
+
+hawaii <- Kline
+hawaii$contact_id <- ifelse(hawaii$contact == "high", 2, 1)
+hawaii$std.pop <- standardize(log(hawaii$population))
+
+rm(Kline, kline)
+
+hawaii.list <- list(
+  tool_totl = hawaii$total_tools,
+  pop_std = hawaii$std.pop,
+  cid = hawaii$contact_id
+)
+
+orig.intersect <- ulam(
+  alist(
+    tool_totl ~ dpois(lambda),
+    log(lambda) <- a,
+    a ~ dnorm(3, 0.5)
+  ), data = hawaii.list, chains = 1, log_lik = TRUE
+)
+
+orig.interact <- ulam(
+  alist(
+    tool_totl ~ dpois(lambda),
+    log(lambda) <- a[cid] + b[cid] * pop_std,
+    a[cid] ~ dnorm(3, 0.5),
+    b[cid] ~ dnorm(0, 0.2)
+  ), data = hawaii.list, chains = 1, log_lik = TRUE
+)
+
+```
+
+
+```{r 11-3 orig compare models}
+compare(orig.intersect, orig.interact, func = PSIS)
+```
+
+
+```{r 11-3 orig summary}
+
+summary(orig.intersect)
+```
+
+
+```{r 11-3 new models, results='hide'}
+no.hawaii <- hawaii[hawaii$culture != 'Hawaii',]
+
+no.hawaii.list <- list(
+  tool_totl = no.hawaii$total_tools,
+  pop_std = no.hawaii$std.pop,
+  cid = no.hawaii$contact_id
+)
+
+m11.3.intersect <- ulam(
+  alist(
+    tool_totl ~ dpois(lambda),
+    log(lambda) <- a,
+    a ~ dnorm(3, 0.5)
+  ), data = no.hawaii.list, chains = 1, log_lik = TRUE
+)
+
+m11.3.interact <- ulam(
+  alist(
+    tool_totl ~ dpois(lambda),
+    log(lambda) <- a[cid] + b[cid] * pop_std,
+    a[cid] ~ dnorm(3, 0.5),
+    b[cid] ~ dnorm(0, 0.2)
+  ), data = no.hawaii.list, chains = 1, log_lik = TRUE
+)
+```
+
+
+```{r 11-3 compare new models, warning=FALSE}
+compare(m11.3.intersect, m11.3.interact, func = PSIS)
+```
+
+```{r 11-3 new model summary}
+summary(m11.3.intersect)
+```
+
+
+```{r 11-3 posterior}
+
+```
+
+
+```{r 11-3 explanation}
+
+```
+
+
+**11-4.** Use WAIC or PSIS to compare the chimpanzee model that includes a unique intercept for
+each actor, m11.4 (page 330), to the simpler models fit in the same section. Interpret the results.
+
+```{r 11-4}
+chimp$treatment <- 1 + chimp$prosoc_left + 2*chimp$condition
+
+m11.1 <- quap(
+  alist(
+    pulled_left ~ dbinom(1, p),
+    logit(p) <- a,
+    a ~ dnorm(0, 10)
+  ), data = chimp
+)
+
+m11.2 <- quap(
+  alist(
+    pulled_left ~ dbinom(1, p),
+     logit(p) <- a + b[treatment],
+    a ~ dnorm(0, 1.5),
+    b[treatment] ~ dnorm(0, 10)
+  ), data = chimp
+)
+
+m11.3 <- quap(
+  alist(
+    pulled_left ~ dbinom(1, p),
+     logit(p) <- a + b[treatment],
+    a ~ dnorm(0, 1.5),
+    b[treatment] ~ dnorm(0, 0.5)
+  ), data = chimp
+)
+
+m11.4 <- quap(
+  alist(
+    pulled_left ~ dbinom(1, p),
+    logit(p) <- a[actor] + b[treatment],
+    a[actor] ~ dnorm(0, 1.5),
+    b[treatment] ~ dnorm(0, 0.5)
+  ), data = chimp
+)
+```
+
+```{r 11-4 compare models}
+(chimp.compare <- compare(m11.1, m11.2, m11.3, m11.4))
+```
+
+```{r 11-4 explanation}
+# The m11.4 model has the lowest WAIC value of only 533 meaning it is the best model of the four due to its flexible nature. This would indicate that the WAIC value for each actor intersect was much smaller than the other models
+```
+
+
+**11-5.** The data contained in data(salamanders) are counts of salamanders (Plethodon elongatus)
+from 47 different 49-m2 plots in northern California. The column SALAMAN is the count in each
+plot, and the columns PCTCOVER and FORESTAGE are percent of ground cover and age of trees in the
+plot, respectively. You will model SALAMAN as a Poisson variable.
+(a) Model the relationship between density and percent cover, using a log-link (same as the example
+in the book and lecture). Use weakly informative priors of your choosing. Check the quadratic
+approximation again, by comparing quap to ulam. Then plot the expected counts and their 89% interval
+against percent cover. In which ways does the model do a good job? A bad job?
+(b) Can you improve the model by using the other predictor, FORESTAGE? Try any models you
+think useful. Can you explain why FORESTAGE helps or does not help with prediction?
+
+```{r 11-5, results='hide'}
+data("salamanders")
+manders <- salamanders
+rm(salamanders)
+
+manders$C <- standardize(manders$PCTCOVER)
+manders$A <- standardize(manders$FORESTAGE)
+```
+
+```{r}
+##simulation
+N <- 50 # 50 samples from prior
+a <- rnorm(N, 0, 1)
+bC <- rnorm(N, 0, 1)
+C_seq <- seq(from = -2, to = 2, length.out = 30)
+plot(NULL,
+  xlim = c(-2, 2), ylim = c(0, 20),
+  xlab = "cover(stanardized)", ylab = "salamanders"
+)
+for (i in 1:N) {
+  lines(C_seq, exp(a[i] + bC[i] * C_seq), col = grau(), lwd = 1.5)
+}
+rm(i)
+```
+
+```{r}
+bC <- rnorm(N, 0, 0.5)
+plot(NULL,
+  xlim = c(-2, 2), ylim = c(0, 20),
+  xlab = "cover(stanardized)", ylab = "salamanders"
+)
+for (i in 1:N) {
+  lines(C_seq, exp(a[i] + bC[i] * C_seq), col = grau(), lwd = 1.5)
+}
+rm(i)
+```
+
+```{r, results='hide'}
+sal.listA <- alist(
+   SALAMAN ~ dpois(lambda),
+  log(lambda) <- a + bC * C,
+  a ~ dnorm(0, 1),
+  bC ~ dnorm(0, 0.5)
+)
+
+m11.5.ulam.a <- ulam(sal.listA, data = manders, chains = 2)
+```
+
+
+```{r}
+precis(m11.5.ulam.a, 2)
+```
+
+
+```{r}
+plot(manders$C, manders$SALAMAN,
+  col = rangi2, lwd = 2,
+  xlab = "cover(standardized)", ylab = "salamanders observed"
+)
+C_seq <- seq(from = -2, to = 2, length.out = 30)
+l <- link(m11.5.ulam.a, data = list(C = C_seq))
+lines(C_seq, colMeans(l))
+shade(apply(l, 2, PI), C_seq)
+```
+
+
+```{r, results='hide'}
+sal.listB <- alist(
+   SALAMAN ~ dpois(lambda),
+  log(lambda) <- a + bC * C,
+  a ~ dnorm(0, 1),
+  c(bC, bA) ~ dnorm(0, 0.5)
+)
+
+m11.5.ulam.b <- ulam(sal.listB, chains = 2, data = manders)
+```
+
+```{r}
+precis(m11.5.ulam.b, 2)
+```
+
+```{r}
+#The estimate for bA is close to zero. While conditioning on percent cover, forest age does not influence salamander count. This may be a post-treatment effect on the variable.
+```
+

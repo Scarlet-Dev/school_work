@@ -1,0 +1,65 @@
+---
+title: "ANLY 510 Exam 1 Q1"
+author: "Akane Simpson"
+date: "12/12/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+library(moments)
+library(pastecs)
+library(compute.es) 
+```
+
+# Question
+The data below represents the yearly earnings (in $1000s of dollars) that high school and college (BS) graduates earn at a small firm. Determine if there is any difference in pay for the two groups: Be sure to include a complete analysis (i.e., all assumptions checked and full understanding of effects garnered) and a clear summary with all needed statistical details included (see lab keys for examples).
+
+# R Code
+```{r, eval=FALSE}
+library(readxl)
+library(moments)
+library(psych)
+
+Q1 = read_xlsx('~/Downloads/Exam1Q1.xlsx')
+
+str(Q1)
+summary(Q1)
+describe(Q1)
+
+# Skewness
+plot(density(Q1$Highschool))
+agostino.test(Q1$Highschool)
+
+plot(density(Q1$BS))
+agostino.test(Q1$BS)
+# Skewness Assumption made for both
+
+# Normality
+qqnorm(Q1$Highschool)
+shapiro.test(Q1$Highschool)
+
+qqnorm(Q1$BS)
+shapiro.test(Q1$BS)
+# Normality assumption made
+
+# Equal Variance
+Q1.lm = lm(Highschool ~ BS, Q1)
+Q1.res = resid(Q1.lm)
+
+plot(Q1$Highschool, Q1.res)
+abline(0,0)
+
+plot(Q1$BS, Q1.res)
+abline(0,0)
+# Equal Variance assumption made.
+
+# t test Analysis
+t.test(Q1$Highschool, Q1$BS, var.equal = TRUE, alternative = 'two.sided')
+
+```
+
+# APA Summary
+
+In the current study, the researcher examined the difference of pay between two levels of education (high school and Bachelor of Science). Performing an independent t-test (equal variances assumed) we find there is no significant difference between education levels of High School (M = 39.51; SD = 2.49) and Bachelor of Science (M = 50.77; SD = 6.00), t(76) = -10.812, p < 0.01.

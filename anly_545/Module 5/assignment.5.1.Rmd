@@ -1,0 +1,33 @@
+---
+title: "Module 5 - Mosaic Displays 1"
+author: "Akane Simpson"
+date: '2022-05-15'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(vcd)
+```
+
+```{r}
+data <- read.csv('./data.5.csv')
+clean <- data[,-1]
+clean$Treatment <- factor(clean$Treatment, labels = c("Treated", "Placebo"))
+clean$Improved <- factor(clean$Improved, labels = c("Yes", "No"))
+
+clean_chi <- chisq.test(clean$Treatment, clean$Improved)
+```
+
+## Analysis (Fact)
+
+1. There ___[is a]___ statistically significant relationship between Treatment and Improved (χ2 = ___17.62747___, p = ___2.686796e-05___).
+
+## Tables and Figures
+
+```{r}
+clean_tabs <- xtabs(~ Treatment + Improved, clean)
+mosaic(clean_tabs, shade = TRUE, labeling = labeling_values)
+```
+
+

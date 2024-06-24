@@ -1,0 +1,345 @@
+---
+title: 'Assignment #8'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(rethinking)
+library(tidyr)
+library(knitr)
+data("rugged")
+```
+
+## Chapter 9 - Markov Chain Monte Carlo
+
+This chapter has been an informal introduction to Markov chain Monte Carlo (MCMC) estimation. The goal has been to introduce the purpose and approach MCMC algorithms. The major algorithms introduced were the Metropolis, Gibbs sampling, and Hamiltonian Monte Carlo algorithms. Each has its advantages and disadvantages. The *ulam* function in the *rethinking* package was introduced. It uses the Stan (mc-stan.org) Hamiltonian Monte Carlo engine to fit models as they are defined in this book. General advice about diagnosing poor MCMC fits was introduced by the use of a couple of pathological examples.
+
+Place each answer inside the code chunk (grey box).  The code chunks should contain a text response or a code that completes/answers the question or activity requested. Make sure to include plots if the question requests them.  
+
+Finally, upon completion, name your final output `.html` file as: `YourName_ANLY505-Year-Semester.html` and publish the assignment to your R Pubs account and submit the link to Canvas. Each question is worth 5 points.
+
+## Questions
+
+**9-1.** Re-estimate the terrain ruggedness model from the chapter, but now using a uniform prior
+for the standard deviation, sigma. The uniform prior should be dunif(0,1). Visualize the priors.  Use ulam to estimate
+the posterior. Visualize the posteriors for both models. Does the different prior have any detectible influence on the posterior distribution of
+sigma? Why or why not?
+
+```{r 9-1 setup}
+d <- rugged
+d$log_gdp <- log(d$rgdppc_2000)
+dd <- d[complete.cases(d$rgdppc_2000) , ]
+dd$log_gdp_std <- dd$log_gdp / mean(dd$log_gdp)
+dd$rugged_std <- dd$rugged - max(dd$rugged)
+dd$cid <- ifelse(dd$cont_africa == 1, 1, 2)
+
+data_slim <- list(
+  log_gsp_std = dd$log_gdp_std,
+  rugged_std = dd$rugged_std,
+  cid = as.integer(dd$cid)
+)
+```
+
+
+```{r 9-1 models, results='hide'}
+m9.1.1 <- ulam(
+  alist(
+    log_gdp_std ~ dnorm(mu, sgm),
+    mu <- a[cid] + b[cid] * ( rugged_std - 0.215),
+    a[cid] ~ dnorm(1, 0.1),
+    b[cid] ~ dnorm(0, 0.3),
+    sgm ~ dexp(1)
+  ), data = data_slim, cores = 1, chains = 4)
+
+m9.1.2 <- ulam(
+  alist(
+    log_gdp_std ~ dnorm(mu, sgm),
+    mu <- a[cid] + b[cid] * ( rugged_std - 0.215),
+    a[cid] ~ dnorm(1, 0.1),
+    b[cid] ~ dnorm(0, 0.3),
+    sgm ~ dunif(0, 1)
+  ), data = data_slim, chains = 4, cores=1)
+```
+
+
+```{r 9-1 m1_m2 precis}
+
+precis(m9.1.1, depth = 2) %>% 
+  as_tibble(rownames = "coefficients") %>% 
+  knitr::kable(digits = 2)
+
+precis(m9.1.2, depth = 2) %>% 
+  as_tibble(rownames = "coefficients") %>% 
+  knitr::kable(digits = 2)
+```
+
+```{r 9-1 priors comparison}
+set.seed(200)
+tibble(exponential = rexp(1e3, 0.3), 
+       uniform = runif(1e3, 0, 1)) %>% 
+  pivot_longer(cols = everything(), 
+               names_to = "type", 
+               values_to = "Sigma") %>% 
+  ggplot(aes(Sigma, fill = type)) +
+  geom_density(colour = "grey", 
+               alpha = 0.6)+
+  scale_fill_manual(values = c("blue", "red")) +
+  labs(y = NULL, fill = NULL) +
+  theme_minimal()
+```
+
+```{r 9-1 posteriror comparison}
+set.seed(912)
+tibble(exponential = extract.samples(m9.1.1, n=1000)$sgm,
+       uniform = extract.samples(m9.1.2, n=1000)$sgm) %>% 
+  pivot_longer(cols = everything(), 
+               names_to = "type", 
+               values_to = "Sigma") %>% 
+  ggplot(aes(Sigma, fill=type)) +
+    labs(y = NULL, fill = NULL) +
+  geom_density(color="grey", alpha=0.6)+
+  theme_minimal()
+```
+```{r}
+# The priors does not have an influence on the posterior sampling from the models. This may be due to the sample size being too large. 
+```
+
+
+**9-2.** Modify the terrain ruggedness model again. This time, change the prior for b[cid] to dexp(0.3).
+What does this do to the posterior distribution? Can you explain it?
+
+```{r 9-2, results='hide'}
+m9.2 <- ulam(
+  alist(
+    log_gdp_std ~ dnorm(mu, sgm),
+    mu <- a[cid] + b[cid] * ( rugged_std - 0.215),
+    a[cid] ~ dnorm(1, 0.1),
+    b[cid] ~ dexp(0.3),
+    sgm ~ dunif(0, 1)
+  ), data = data_slim, chains = 1, messages = FALSE)
+```
+
+```{r 9-2 precis}
+precis(m9.2, depth=2) %>% 
+  as_tibble(rownames = "coefficients") %>% 
+  knitr::kable(digits = 2)
+```
+
+```{r 9-2 priors}
+tibble(exponential_b = rexp(1e3,0.3)) %>% 
+  ggplot(aes(exponential_b))+
+  geom_density(color = "grey", alpha = 0.6, fill = "gold")+
+  labs(y = NULL, fill = NULL) +
+  theme_minimal()
+```
+
+```{r b1 and b2 posteriors}
+tibble(b1 = extract.samples(m9.2, n=1000)$b[,1]) %>% 
+  ggplot(aes(b1)) +
+  geom_density(fill = "darkorchid3", color="grey", alpha=0.6)+
+  labs(y = NULL, fill = NULL) +
+  theme_minimal()
+
+tibble(b2 = extract.samples(m9.2, n=1000)$b[,2]) %>% 
+  ggplot(aes(b2)) +
+  geom_density(fill = "darkorange2", color="grey", alpha=0.6)+
+  labs(y = NULL, fill = NULL) +
+  theme_minimal()
+```
+```{r}
+# 
+```
+
+
+**9-3.** Re-estimate one of the Stan models from the chapter, but at different numbers of warmup iterations. Be sure to use the same number of sampling iterations in each case. Compare the n_eff
+values. How much warmup is enough?
+
+```{r 9-3, results='hide'}
+start <- list(a = c(1, 1), b = c(0, 0), sigma = 1)
+
+m9.3 <- ulam(
+  alist(
+    log_gdp_std ~ dnorm(mu, sigma),
+    mu <- a[cid] + b[cid] * (rugged_std - 0.215),
+    a[cid] ~ dnorm(1, 0.1),
+    b[cid] ~ dnorm(0, 0.3),
+    sigma ~ dexp(1)
+  ),
+  data = data_slim,
+  start = start,
+  chains = 4,
+  cores = 4,
+  iter = 100,
+  messages = FALSE
+)
+
+warm_list <- c(1, 5, 10, 50, 100, 500, 1000)
+
+n_eff <- matrix(NA, nrow = length(warm_list), ncol = 6) 
+
+for (i in 1:length(warm_list)) { # loop over warm_list and collect n_eff
+  w <- warm_list[i]
+  m_temp <- ulam(m9.3@formula, data = m9.3@data, chains = 4, cores = 4, iter = 1000 + w, warmup = w, start = start)
+  n_eff[i,] <- precis(m_temp, 2)$n_eff
+}
+
+colnames(n_eff) <- rownames(precis(m_temp, 2))
+rownames(n_eff) <- warm_list
+```
+
+
+```{r 9-3 n_eff}
+n_eff %>% 
+  as_tibble(rownames = "coefficients") %>% 
+  knitr::kable(digits = 2)
+```
+
+```{r}
+# Based on the precis table the most robust warmup was at 100.
+```
+
+
+**9-4.** Run the model below and then inspect the posterior distribution and explain what it is accomplishing.
+
+```{r 9-4, results='hide'}
+mp <- ulam(
+ alist(
+   a ~ dnorm(0,1),
+   b ~ dcauchy(0,1)
+ ), data=list(y=1) , chains=4, cores = 4, messages = F )
+```
+
+
+```{r 9-4 precis}
+precis(mp) %>% 
+  as_tibble(rownames = "coefficients") %>% 
+  knitr::kable(digits = 2)
+```
+
+```{r priors}
+tibble(
+  normal = rnorm(1e3, 1),
+  cauchy = rcauchy(1e3, 0, 1)
+) %>% 
+  pivot_longer(cols = everything(), 
+               names_to = "parameter", 
+               values_to = "estimate") %>% 
+  ggplot(aes(estimate, fill=parameter)) +
+  geom_density(colour = "grey", 
+               alpha = 0.6)+
+  scale_fill_manual(values = c("seagreen", "olivedrab")) +
+  facet_wrap(~ parameter, scales = "free") +
+  labs(y = NULL, fill = NULL) +
+  theme_minimal()
+```
+```{r posterior}
+tibble(
+  normal = extract.samples(mp, n=1000)$a,
+  cauchy = extract.samples(mp, n=1000)$b
+)%>% 
+  pivot_longer(cols = everything(), 
+               names_to = "parameter", 
+               values_to = "estimate") %>% 
+  ggplot(aes(estimate, fill=parameter)) +
+  geom_density(colour = "grey", 
+               alpha = 0.6)+
+  scale_fill_manual(values = c("seagreen", "olivedrab")) +
+  facet_wrap(~ parameter, scales = "free") +
+  labs(y = NULL, fill = NULL) +
+  theme_minimal()
+```
+
+```{r 9-4 trace}
+traceplot(mp, n_col = 2)
+```
+
+```{r}
+# The mp model built a linear relationship between two different distributions, normal and Cauchy. 
+```
+
+Compare the samples for the parameters a and b. Can you explain the different trace plots? If you are
+unfamiliar with the Cauchy distribution, you should look it up. The key feature to attend to is that it
+has no expected value. Can you connect this fact to the trace plot?
+
+```{r}
+# The alpha traceplot (normal) has a an expected frequency where most of its values fall between (-2,2). However the beta (Cauchy) traceplot is significantly different with it having an extreme point and a very long tail. The beta trace does not have an expected value and shows a median and mode for values. 
+```
+
+
+**9-5.** Recall the divorce rate example from Chapter 5. Repeat that analysis, using ulam this time,
+fitting models m5.1, m5.2, and m5.3. Use compare to compare the models on the basis of WAIC
+or PSIS. To use WAIC or PSIS with ulam, you need add the argument log_log=TRUE. Explain the
+model comparison results.
+
+```{r 9-5, results='hide' }
+data("WaffleDivorce")
+waffle <- WaffleDivorce
+
+waffle$D <- standardize(waffle$Divorce)
+waffle$M <- standardize(waffle$Marriage)
+waffle$A <- standardize(waffle$MedianAgeMarriage)
+
+waffle_trim <- list(D=waffle$D, M=waffle$M, A=waffle$A)
+
+m9.5.1 <- ulam(
+  alist(
+    D ~ dnorm(mu, sig),
+    mu <- a + bA*A,
+    a ~ dnorm(0, 0.2),
+    bA ~ dnorm(0, 0.5),
+    sig ~ dexp(1)
+    ), 
+  data = waffle_trim,
+  chains = 4,
+  cores = 2,
+  log_lik = TRUE,
+  messages = FALSE
+)
+
+m9.5.2 <- ulam(
+  alist(
+    D ~ dnorm(mu, sig),
+    mu <- a + bM*M,
+    a ~ dnorm(0, 0.2),
+    bM ~ dnorm(0, 0.5),
+    sig ~ dexp(1)
+    ), 
+  data = waffle_trim,
+  chains = 4,
+  cores = 2, 
+  log_lik = TRUE,
+  messages = FALSE
+)
+
+m9.5.3 <- ulam(
+  alist(
+    D ~ dnorm(mu, sig),
+    mu <- a + bA*A + bM*M,
+    a ~ dnorm(0, 0.2),
+    bA ~ dnorm(0, 0.5),
+    bM ~ dnorm(0, 0.5),
+    sig ~ dexp(1)
+    ), 
+  data = waffle_trim,
+  chains = 4,
+  cores = 2, 
+  log_lik = TRUE,
+  messages = FALSE
+)
+```
+
+
+```{r 9-5 precis}
+set.seed(77)
+compare(m9.5.1, m9.5.2, m9.5.3, func=WAIC)
+```
+
+
+```{r}
+# Each model produces a different WAIC score. Model 1 which only included Median Age performed the best and had the smallest WAIC score (125.9). Model 2 had the second highest score (127.1) with Marriage Rate and performed moderately. Model 3 combined Marriage and Age and performed the worst (139.0). This means that Age is a good predictor for divorce.
+```
+
+

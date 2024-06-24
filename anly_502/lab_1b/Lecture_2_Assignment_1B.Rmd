@@ -1,0 +1,130 @@
+---
+title: "Lecture 1: Assignment 1B - Data Basics"
+author: "Akane Simpson"
+date: '`r Sys.Date()`'
+output: 
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+cdc <- source("http://www.openintro.org/stat/data/cdc.R")$value
+
+```
+
+# NOW ON YOUR OWN
+
+1. Make a scatterplot of weight versus desired weight. Describe the relationship between these two variables.
+
+```{r Q1 Weight Correlation}
+
+plot(cdc$wtdesire, cdc$weight, xlab = "Desired Weight", ylab = "Weight",  main = "Weight against Desired Weight Scatter Plot Chart", col = "maroon")
+
+r <- cor(cdc$weight, cdc$wtdesire)
+
+```
+
+```{r, echo=FALSE}
+sprintf("The two variables have a correlation of %.4f, which means it they have a strong and positive association.", r)
+
+```
+
+
+2. Let's consider a new variable: the difference between desired weight (wtdesire) and current weight (weight).
+
+```{r Weight Difference}
+wdiff = cdc$wtdesire - cdc$weight
+```
+
+  a. What type of data is wdiff? If an observation wdiff is 0, what does this mean about the person's weight and desired weight.
+```{r Q2a, echo=FALSE}
+print("The wdiff variable is a nominal data type. If the weight difference is 0 then the subject would be at their desired weight.")
+
+```
+
+  b. What if wdiff is positive or negative?
+```{r Q2b,echo=FALSE}
+print("If the wdiff is positive then the subject is seeking to gain weight while if the weight difference is negative then the subject is seeking to loose weight.")
+
+```
+
+3. Describe the distribution of wdiff in terms of its center, shape, and spread, including any plots you use.
+```{r Weight Difference Distribution}
+hist(wdiff, xlim = c(-100, 100), breaks = 200, xlab = "Weight Difference", main = "Histogram of Weight Difference Frequency", col = "gold")
+
+```
+
+```{r Q3,echo=FALSE}
+print("The weight difference histogram is not normal distribution. It has a single peak making it unimodal and has a very high kurtosis. Most of the values tend to the left side (positively skewed), leaving a very narrow left tail. This reveals many outliers on either side of the peak.")
+
+```
+
+
+  a. What does this tell us about how people feel about their current weight?
+```{r Q3a, echo=FALSE}
+print("Subjects, on average, seek to lose some weight (5 lbs) to reach their ideal body weight. Outside of that average subjects that have more weight are more than likely want to lose weight.")
+
+```
+
+4. Using  numerical summaries and a side-by-side box plot, determine if men tend to view their weight differently than women.
+
+```{r Q4 Boxplot of Weight Against Gender}
+boxplot(cdc$weight ~ cdc$gender, ylab = "Gender", xlab = "Weight (lb)", main = "Weight against Gender Boxplot", col = c("cyan", "pink"), horizontal = 1)
+
+```
+
+```{r Men Numerical Summary}
+cdc_men = (subset(cdc, subset = gender == "m", select = c(age, genhlth, exerany, hlthplan, smoke100, wtdesire, weight)))
+cdc_men$wtdiff =  cdc_men$wtdesire - cdc_men$weight
+
+summary(cdc_men)
+
+barplot(table(cdc_men$hlthplan), ylab = "Frequency" , xlab = "Men with Health Plan", main = "Summary of Men's Health Plan", col = c("red", "blue"))
+
+barplot(table(cdc_men$genhlth), ylab = "Frequency", xlab = "Men's Reported General Health", main = "Summary of Men's General Health", col = c("dark green", "green", "light green", "yellow", "orange"))
+
+```
+
+```{r Women Numerical Summary}
+cdc_women = (subset(cdc, subset = gender == "f", select = c(age, genhlth, exerany, hlthplan, smoke100, wtdesire, weight)))
+cdc_women$wtdiff =  cdc_women$wtdesire - cdc_women$weight
+
+
+summary(cdc_women)
+
+barplot(table(cdc_women$hlthplan), ylab = "Frequency", xlab = "Women with Health Plan", main = "Summary of Women's Health Plan", col = c("red", "blue"))
+
+barplot(table(cdc_women$genhlth), ylab = "Frequency", xlab = "Women's Reported General Health", main = "Summary of Women's General Health", col = c("dark green", "green", "light green", "yellow", "orange"))
+
+```
+
+
+```{r Comparison between the two groups, echo=FALSE}
+
+print("Men and women have a similiar interest in losing some weight. Based on the summay of the data and comparison between the two groupswomen tend to take care of themselves more than men do. This can be seen in the comparison of reported general health and health plan.")
+```
+
+
+## Now it's time to get creative.
+
+5. Find the mean and standard deviation of weight and determine:
+```{r Q5 Mean & SD of Weight}
+weight_mean = round(mean(cdc$weight), 4)
+weight_sd = round(sd(cdc$weight), 4)
+```
+
+```{r Q5 CDC Weight Summary,echo=FALSE}
+summary(cdc$weight)
+```
+
+  a. What proportion of the weights are within one standard deviation of the mean?
+```{r Proportion of Weights in 1 SD, echo=FALSE}
+hist(cdc$weight, breaks = 50, col = "orange", xlim = c(0, 500))
+weight_under <- sum((cdc$weight <= (weight_mean + weight_sd)) == TRUE)
+
+weight_prop <- (weight_under/nrow(cdc)) * 100
+```
+```{r Q5a, echo=FALSE}
+sprintf("Within one standard deviation of the mean %.2f%% subject's weight fall below or equal to proportion.", weight_prop)
+```
+

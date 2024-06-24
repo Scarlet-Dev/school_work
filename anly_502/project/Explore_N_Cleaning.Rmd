@@ -1,0 +1,257 @@
+---
+title: "Explore_n_Cleaning"
+author: "Akane Simpson, Hao Zhang, Xinyi Zhu"
+date: "8/26/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# import libraries
+library("reshape")
+library("ggplot2")
+library("psych")
+library("moments")
+library("dplyr")
+
+# download.file("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv","c19_time_series_deaths.csv")
+
+# download.file("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv","c19_time_series_confirmed.csv")
+
+# download.file("https://raw.githubusercontent.com/cphalpert/census-regions/master/us%20census%20bureau%20regions%20and%20divisions.csv", "us_state_by_region.csv")
+
+c19_ts.deaths <- read.csv("./c19_time_series_deaths.csv")
+c19_ts.confirmed <- read.csv("./c19_time_series_confirmed.csv")
+us_map = read.csv('./us_state_by_region.csv')
+```
+
+# Data Sets Structures
+
+## US C19 Deaths
+
+```{r}
+str(c19_ts.deaths)
+dim(c19_ts.deaths)
+names(c19_ts.deaths)
+```
+
+## USC19 Confirmed Cases
+
+```{r}
+str(c19_ts.confirmed)
+dim(c19_ts.confirmed)
+names(c19_ts.confirmed)
+```
+
+## Get US state file
+
+```{r}
+str(us_map)
+head(us_map)
+single_state = 'Alaska'
+sum(c19_ts.deaths$Province_State == single_state)
+
+sum(us_map$State == single_state)
+
+```
+
+# Data Wrangling
+
+## C19 Deaths
+
+```{r}
+# Data Cleaning
+dv <- c(names(c19_ts.deaths[,13:584])) # NOTE: this is hardcoded.
+
+sum(is.na(c19_ts.deaths))
+c19_deaths <- melt(c19_ts.deaths, id = c("UID","Combined_Key","Province_State","Population"), measure.vars = dv)
+colnames(c19_deaths)[3] <- "State"
+colnames(c19_deaths)[5:6] <- c("Sample Date","COVID-19 Deaths")
+
+
+temp_dates = c19_deaths[,5]
+temp_dates = gsub("X",'',temp_dates)
+temp_dates = gsub("\\.","/",temp_dates)
+temp_dates <- as.Date(temp_dates, format = "%m/%d/%y")
+reporting_years <- as.numeric(format(temp_dates, format = "%Y"))
+reporting_months <- as.numeric(format(temp_dates, format = "%m"))
+
+
+# Data Aggregation
+
+# Created additional columns for aggregation 
+c19_deaths[,5] <- temp_dates
+c19_deaths$Reporting_Months <- reporting_months
+c19_deaths$Reporting_Years <- reporting_years
+
+summary(c19_deaths)
+```
+
+## C19 Confirmed Cases
+
+```{r}
+```
+
+# subgroup and Data Summaries
+
+```{r}
+# Subgroups
+deaths_in_2020 <- subset(c19_deaths, c19_deaths$Reporting_Years == 2020)
+deaths_in_2021 <- subset(c19_deaths, c19_deaths$Reporting_Years == 2021)
+  # Need to make some more subgroups in relation to monthly changes within the states
+
+
+
+# Data Summaries
+summary(c19_deaths)
+
+population <- sum(c19_deaths$Population)# Total population from 2020 till now
+total_deaths <- sum(c19_deaths$`COVID-19 Deaths`)# Total deaths from 2020 till now
+
+describe(c19_deaths$`COVID-19 Deaths`)
+describe(c19_deaths$Population)
+  # There is a difference between the population variable and the value provided by the describe. Not sure why
+
+total_prop_death <- total_deaths/population * 100 #This is the proportion of deaths within the data sets
+```
+
+# Data Visualization
+
+```{r}
+# Data Visualization
+death_by_state = data.frame((sort(table(c19_deaths$State))))
+names(death_by_state) = c('State', 'death_count')
+death_by_state$State = factor(death_by_state$State)
+total = sum(death_by_state$death_count)
+death_by_state$death_count = death_by_state$death_count *1.0 / total * 100.
+head(death_by_state)
+tail(death_by_state)
+str(death_by_state)
+
+
+barplot(height=death_by_state$death_count, names=death_by_state$State, col="#69b3a2")
+
+```
+
+```{r}
+
+stateTexas = subset(c19_deaths, State == 'Texas')
+
+stateTexas2020 = subset(stateTexas, Reporting_Years == '2020')
+stateTexas2021 = subset(stateTexas, Reporting_Years == '2021')
+#tail(stateTexas2020)
+
+#tail(stateTexas2021)
+
+result2020 = aggregate(stateTexas2020$'COVID-19 Deaths', by=list(Category=stateTexas2020$'Sample Date'), FUN=sum)
+names(result2020) = c('Date', 'death_count')
+
+barplot(height=result2020$death_count, names=result2020$Date, col="#69b3a2")
+
+```
+
+```{r}
+result2021 = aggregate(stateTexas2021$'COVID-19 Deaths', by=list(Category=stateTexas2021$'Sample Date'), FUN=sum)
+names(result2021) = c('Date', 'death_count')
+
+barplot(height=result2021$death_count, names=result2021$Date, col="purple")
+```
+
+# death by region: this section merge the two data by State
+
+```{r}
+dim(c19_deaths)
+dim(us_map)
+
+#head(c19_deaths)
+
+#head(us_map)
+
+c19_deaths_w_region = merge(x= c19_deaths, y = us_map[c('State', 'Region')], by = 'State', all.x = TRUE) # 
+dim(c19_deaths_w_region)
+
+head(us_map[c('State', 'Region')])
+
+head(c19_deaths_w_region)
+
+# Check out the region
+
+table(c19_deaths_w_region$Region)
+```
+
+# Death By Region: Northeast
+
+```{r}
+# reference: https://stackoverflow.com/questions/18941176/multiple-barplots-in-same-graph-maintain-the-same-axes-and-same-bar-width
+
+main20 = c(paste ("2020 Region ", 'Northeast'), paste ("2020 Region ", 'South'), paste ("2020 Region ", 'West'), paste ("2020 Region ", 'Midwest'))
+
+main21 = c(paste ("2021 Region ", 'Northeast'), paste ("2021 Region ", 'South'), paste ("2021 Region ", 'West'), paste ("2021 Region ", 'Midwest'))
+
+
+agg_by_region = function (df, input_region, year){
+  region = subset(df, Region == input_region)
+  
+  regionYear = subset(region, Reporting_Years == year) # all regions in 2020
+
+  ans = aggregate(regionYear$'COVID-19 Deaths', by=list(Category=regionYear$'Sample Date'), FUN=sum)
+  names(ans) = c('Date', 'death_count')
+  return (ans)
+}
+
+aggNE20 = agg_by_region(c19_deaths_w_region, 'Northeast', '2020')
+aggNE21 = agg_by_region(c19_deaths_w_region, 'Northeast', '2021')
+
+aggSouth20 = agg_by_region(c19_deaths_w_region, 'South', '2020')
+aggSouth21 = agg_by_region(c19_deaths_w_region, 'South', '2021')
+
+aggWest20 = agg_by_region(c19_deaths_w_region, 'West', '2020')
+aggWest21 = agg_by_region(c19_deaths_w_region, 'West', '2021')
+
+aggMidwest20 = agg_by_region(c19_deaths_w_region, 'Midwest', '2020')
+aggMidwest21 = agg_by_region(c19_deaths_w_region, 'Midwest', '2021')
+
+
+
+# 2020
+par(mfrow = c(1:2))
+# y_val is used to enforce the same y axis
+y_val = max(max(aggNE20$death_count), max(aggSouth20$death_count), max(aggWest20$death_count), max(aggMidwest20$death_count))
+
+barplot(height=aggNE20$death_count, main = main20[1], names=aggNE20$Date, col="darkgreen", ylim = c(1, y_val) )
+barplot(height=aggSouth20$death_count, main = main20[2], names=aggSouth20$Date, col="red", ylim = c(1, y_val) )
+
+par(mfrow = c(1:2))
+barplot(height=aggMidwest20$death_count, main = main20[3], names=aggMidwest20$Date, col="black", ylim = c(1, y_val))
+barplot(height=aggWest20$death_count, main = main20[4], names=aggWest20$Date, col="blue", ylim = c(1, y_val))
+
+
+# 2021
+par(mfrow = c(1:2))
+y_val = max(max(aggNE21$death_count), max(aggSouth21$death_count), max(aggWest21$death_count), max(aggMidwest21$death_count))
+
+barplot(height=aggNE21$death_count, main = main21[1], names=aggNE21$Date, col="darkgreen", ylim = c(1, y_val))
+barplot(height=aggSouth21$death_count, main = main21[2], names=aggSouth21$Date, col="red", ylim = c(1, y_val))
+
+par(mfrow = c(1:2))
+barplot(height=aggMidwest21$death_count, main = main21[3], names=aggMidwest21$Date, col="black", ylim = c(1, y_val))
+barplot(height=aggWest21$death_count, main = main21[4], names=aggWest21$Date, col="blue", ylim = c(1, y_val))
+
+```
+
+# more
+
+```{r}
+
+```
+
+# more 2
+
+# Inference
+
+In this section we should get
+
+```{r}
+
+```

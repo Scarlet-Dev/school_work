@@ -1,0 +1,111 @@
+---
+title: "Module 4 - Contingency Tables 2"
+author: "Akane Simpson"
+date: '2022-04-28'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(kableExtra)
+library(vcd)
+library(vcdExtra)
+```
+
+```{r}
+data <- read.csv('./data.4.csv')
+
+clean <- data
+
+clean$Division <- factor(clean$Division)
+clean$Gender <- factor(clean$Gender, levels = c('Male', 'Female'))
+clean$Hired <- factor(clean$Hired, levels = c('Y', 'N'))
+```
+
+```{r}
+base.freq <- xtabs(~ Gender + Hired, data = clean)
+totals <- c( sum(base.freq[1,]), sum(base.freq[2,]) )
+percents <- c( (base.freq[1,1]/totals[1]), (base.freq[2,1]/totals[2]) ) 
+hiring.odds <- sapply(percents, FUN = function(x) { x/(1-x) } )
+
+reshaped.base <- reshape(data.frame(base.freq), idvar = "Gender", 
+                         timevar = "Hired", direction = "wide")
+colnames(reshaped.base) <- c("Gender", "Hired", "Not Hired")
+
+reshaped.base$Total.Hired <- totals
+reshaped.base$Percent.Hired <- as.double(format(percents * 100, digits = 4))
+reshaped.base$Hiring.Odds <- hiring.odds
+
+mort <- matrix( c(reshaped.base[, "Hired"], reshaped.base[, "Not Hired"]), 
+                nrow = 2, ncol=2)
+
+or <- oddsratio(mort, log = F)
+
+# Where 
+# HO: There is no significant odds ratio for hiring men vs hiring women
+# HA: There is a significant odds ratio for hiring men vs women
+# confint(or)
+
+odds.ratio <- c( round(reshaped.base[1,6]/reshaped.base[2,6], 2), round(reshaped.base[2,6]/reshaped.base[1,6], 2) )
+
+reshaped.base$Hiring.Odds <- round(hiring.odds, 2)
+
+freq.table <- knitr::kable(reshaped.base, 
+                           col.names = c("", "Hired", "Not Hired", "Total" , "% Hired", "Odds(Hired)"), 
+                           caption = "Company wide hiring") %>% 
+  kable_styling()
+```
+
+```{r}
+division.base <- xtabs(~ Hired + Gender + Division, data = clean)
+
+division.df <- reshape(data = as.data.frame(division.base), 
+                       idvar = c("Division", "Gender"), timevar = c("Hired"), 
+                       varying = c("Hired", "Not Hired"), direction = "wide")
+
+division.df$Total <- rowSums(division.df[, c("Hired", "Not Hired")])
+division.df$"% Hired" <- mapply(division.df[, "Hired"], division.df[, "Total"], 
+                                FUN = function(x, y) { (x/y) * 100 })
+division.df$"Odds (Hired)" <- sapply(division.df$`% Hired` / 100, 
+                                     FUN = function(x) { x/(1-x) } )
+columns <- colnames(division.df[-c(1:2)])
+colOrder <- c("Division", "Gender", columns)
+division.df <- division.df[,colOrder]
+rownames(division.df) <- NULL
+
+div.table <- knitr::kable(division.df, col.names = c("", "", columns), 
+                          caption = "Division base hiring", 
+                          digits = c(5,5,5,5,5,2,2)) %>% 
+  collapse_rows(columns = c(1)) %>%
+  kable_styling()
+```
+
+```{r}
+alpha <- 0.05 #Assuming our alpha
+analysis.chi <- assocstats(x = division.base)
+analysis.x2 <- c(23.81610, 0.4457718, 1.030877, 0.4038164, 1.348721, 0.5661244)
+analysis.odds <- as.data.frame(oddsratio(division.base, log = F))
+analysis.pVal <- c(1.059922e-06, 0.5043497, 0.3099528, 0.5251249, 0.2455019, 0.4518031)
+
+analysis.table <- data.frame(
+  Division = levels(clean$Division),
+  X2 = analysis.x2,
+  `p.value` = analysis.pVal,
+  `Odds.Ratio` = analysis.odds$OR,
+  `Significant.?` = ifelse(analysis.pVal < alpha, 'Y', 'N')
+) %>% kable(col.names = c("Division", "X2", "p-value", "Odds Ratio", "Significant ?")) %>% kable_styling()
+```
+
+## Analysis (Fact)
+1. The χ2 value, p-value, significance, and Odds Ratio for Table 2 are below.
+
+`r analysis.table`
+
+## Analysis (Opinion)
+1. The Odds Ratios between Table 1 and Table 2 seem to tell different stories. Why are these stories different? ___The Odds Ration in Table 1 refers to the ratio of Male/Female being hired in the company overall. This would make the odds of getting hired by this company seem more in favor of male applicants. However, breaking down this ratio by division in Table 2 reveals that each department has varying hiring ratios between males and females, where hiring ratios for a gender can be influenced by ratio of that division being a majority male or majority female. Another reason why these tables are so different could also be the number of male/females applying to these divisions. It can be said that applicants may favor a division more than another for various reasons.___.
+
+## Tables and Figures
+
+`r freq.table`
+
+`r div.table`

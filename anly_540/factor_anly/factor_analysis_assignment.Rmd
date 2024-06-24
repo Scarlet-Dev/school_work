@@ -1,0 +1,97 @@
+---
+title: 'Factor Analysis'
+author: "STUDENT NAME"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load the libraries + functions
+
+Load all the libraries or functions that you will use to for the rest of the assignment. It is helpful to define your libraries and functions at the top of a report, so that others can know what they need for the report to compile correctly. 
+```{r libaries}
+##r chunk
+
+```
+
+## The Data
+The data for this assignment is IMdB Movie Reviews. The first column in the sentiment of the review. The second column is the number of tokens in the review. The remaining columns are word frequencies (percent of the number of tokens) for most frequent 250 terms in the corpus. Make sure to only use column 3:252 for PCA. The goal of the current assignment is to explore the themes used in movie reviews and determine which themes are used in positive versus negative reviews. 
+
+
+```{r thedata}
+##r chunk
+
+```
+
+## How many factors?
+
+- Explore how many factors you should use.
+  - Include a scree plot.
+- How many components would make sense based on the scree plot?
+  - ANSWER:
+
+```{r howmany}
+##r chunk
+
+```
+
+## Simple structure - run the PCA
+
+- Run a least two PCA solutions in R
+  - Note: Given the sample size, should limit number of components to 10 at most.
+  - Include the saved `principal` code, but then be sure to print out the results, so the summary is on your report.
+
+```{r solution 1}
+##r chunk
+
+
+
+```
+
+```{r solution 2}
+##r chunk
+
+
+```
+
+## Adequate solution
+
+- Examine the fit indices of your two solutions. Which solution has better fit indices? 
+  - ANSWER:
+
+```{r fit indices}
+
+
+```
+
+## Themes
+
+- Pick what you think is the best solution (based primarily on interpretability). Print the themes in the r chunk below. What labels would you give the themes? How would you describe each theme? Provide both a label for each theme and a longer description of what each seems to be capturing here.
+
+  - ANSWER:
+
+```{r theme}
+##r chunk
+
+```
+
+
+## Group Differences
+- Create theme scores for your best solution. 
+- Examine the differences between positive versus negative reviews. Include summary statistics and t-test results. Be sure to interpret the t-test results in the following question
+- Which themes are used more in positive reviews? Which themes are used more in negative reviews?
+
+  - ANSWER:
+
+```{r group differences}
+
+```
+
+## Discussion Questions
+
+- Describe a set of texts and research question that interests you that could be explored using this method. 
+
+  - ANSWER:

@@ -1,0 +1,158 @@
+---
+title: "Statistical Modeling and Graphing"
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("ggplot2")
+library("reshape")
+data_05 <- read.csv("./05_data.csv")
+```
+
+*Citation*: Trends in Internet-based business-to-business marketing
+
+*Abstract*: The Internet is changing the transactional paradigms under which businesses-to-business marketers operate. Business-to-business marketers that take advantage of the operational efficiencies and effectiveness that emerge from utilizing the Internet in transactions are out performing firms that utilize traditional transactional processes. As an example, Dell computers, by utilizing business-to-business processes that take advantage of the Internet, has gained the largest market share in the PC business when compared to traditional manufacturers such as Compaq. This paper first examines the genesis of the Internet movement in business-to-business markets. The long-term impact of the increase of business-to-business utilization of the Internet on the marketing theory and marketing process is then discussed. Finally, managerial implications and directions for future research are highlighted.
+
+Dataset includes:
+
+    1)  Business marketing focus - traditional or forward thinking.
+    
+    2)	Internet use - low, medium, or high levels of business marketing use on the internet.
+    
+    3)	Time _ 1 - sales scores at the first measurement time.
+    
+    4)	Time _ 2 - sales scores at the second measurement time
+
+On all of these questions, be sure to include a coherent label for the X and Y axes.  You should change them to be "professional looking" (i.e. Proper Case, explain the variable listed, and could be printed in a journal).  The following will be assessed:
+
+    1)	Is it readable?
+    
+    2)	Is X-axis labeled appropriately?
+    
+    3)	Is Y-axis labeled appropriately?
+    
+    4)	Is it the right graph?
+    
+    5) 	Do the labels in the legend look appropriate?
+    
+    6)	Are there error bars when appropriate?
+
+We won't grade for color of bars or background color, but you should consider that these things are usually printed in black/white - so be sure you know how to change those values as well as get rid of that grey background.
+
+Please note that each subpoint (i.e. a, b) indicates a different chart.
+
+```{r starting}
+summary(data_05)
+
+data_05.biz = factor(data_05$biz_focus, levels = c("forward","traditional"), labels = c("Forward Thinking","Traditional Thinking"))
+table(data_05.biz)
+
+data_05.internet = factor(data_05$internet, levels = c("high", "medium", "low"),labels = c("High Usage","Medium Usage","Low Usage"))
+table(data_05.internet)
+```
+
+
+1)	Make a simple histogram using ggplot:
+
+    a.	Sales at time 1
+
+```{r hist1}
+hist1 <- ggplot(data = data_05,aes(x = time.1))
+hist1 +
+    geom_histogram(binwidth = 1,fill = "seagreen", color = "oldlace")+
+    labs(x = "Time Series 1", y = "Total Sales", title = "Total Sales Recorded in Time Series 1")+
+    theme_classic()
+```
+
+    b.	Sales at time 2
+
+```{r hist2}
+hist2 <- ggplot(data = data_05, aes(x = time.2))
+hist2 + 
+    geom_histogram(binwidth = 1, color = "oldlace", fill = "maroon") +
+    labs(x = "Time Series 2", y = "Total Sales", title = "Totals Sales Recorded in Time Series 2")+
+    theme_classic()
+```
+
+2)	Make a bar chart with two independent variables:
+
+    a.	Business focus, internet, DV: sales at time 2
+
+```{r bar1}
+bar1 <- ggplot(data = data_05,aes(biz_focus,time.2, fill = internet))
+bar1 +
+    stat_summary(fun="mean", geom = "bar", position = "dodge")+
+    stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width=0.2,position = position_dodge(width = 0.90))+
+    labs(x = "Business Focus", y = "Average Sale", title = "Average Sales between Business Focus and Internet\nUsage using Time Series 2")+
+    scale_x_discrete(labels = c("Foward Thinking","Traditional Thinking"))+
+    scale_fill_manual(name = "Internet Usage", labels = c("High Usage","Low Usage","Medium Usage"), values = c("lightcoral","lightskyblue","palegreen2"))+
+    theme_classic()
+```
+
+3)	Make a bar chart with two independent variables: 
+
+    a.	Time (time 1, time 2), Business focus, DV: is sales from time 1 and 2
+
+```{r bar2}
+#where time = time.1 + time.2. therefore melt the two
+data05.melt = melt(data_05, id.vars = c("id","biz_focus"), measure.vars = c("time.1","time.2"))
+colnames(data05.melt)[3:4] <- c("time","score")
+
+bar2 <- ggplot(data05.melt, aes(biz_focus, score, fill = time))
+bar2 +
+    stat_summary(fun = mean, geom = "bar", position = "dodge")+
+    stat_summary(fun.data = mean_cl_normal, geom = "errorbar",width = 0.2,position = position_dodge(width = 0.90))+
+    labs(x="Business Focus",y="Average Sale", title = "Average Sales of Business Focus between Time Series")+
+    scale_x_discrete(labels = c("Forward Thinking","Traditional Thinking"))+
+    scale_fill_manual(name="Time Series", labels = c("Time Series 1","Time Series 2"), values = c("lightblue1","lightblue4"))+
+    theme_classic()
+```
+
+4)	Make a simple line graph:
+
+    a.	Time (time 1, time 2), DV: is sales from time 1 and 2 
+
+```{r line}
+time_only <- melt(data_05,id = c("id"),measure.vars = c("time.1","time.2"))
+colnames(time_only)[2:3]<- c("time","score")
+
+line1 <- ggplot(time_only, aes(time,score))
+line1 +
+    stat_summary(fun = mean, geom = "point")+
+    stat_summary(fun = mean, geom = "line", aes(group=1))+
+    stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.2,position = position_dodge(width = 0.90))+
+    labs(x="Time Series", y="Average Sale", title="Average Sales of Time Series")+
+    scale_x_discrete(labels = c("Time 1", "Time 2"))+
+    theme_classic()
+```
+
+5)	Make a simple scatterplot:
+    
+    a.	Sales at Time 1, Time 2
+
+```{r scatter1}
+scatter1 <- ggplot(data_05, aes(time.1,time.2))
+scatter1+
+    geom_point(color="dark green")+
+    geom_smooth(method = "lm", formula = y ~ x,color="black")+
+    labs(x="Time Series 1",y="Time Series 2",title="Individual Sales by Time Series")+
+    theme_classic()
+```
+
+6)	Make a grouped scatterplot:
+
+    a.	Sales at time 1 and 2, Business focus
+
+```{r scatter2}
+scatter2 <- ggplot(data_05, aes(time.1,time.2))
+scatter2+
+    geom_point(aes(col = biz_focus))+
+    geom_smooth(method = "lm", formula = y ~ x, color = "black")+
+    labs(x="Time Series 1", y="Time Series 2", title = "Individual Sales between Business Focuses by\nTime Series")+
+    scale_color_manual(name ="Business Focus", labels = c("Foward Thinking","Traditional Thinking"),values = c("tomato","steelblue"))+
+    theme_classic()
+```
+

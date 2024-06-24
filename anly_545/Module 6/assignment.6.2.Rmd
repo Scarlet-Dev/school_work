@@ -1,0 +1,100 @@
+---
+title: "Module 6 - Logistic Regression 2"
+author: "Akane Simpson"
+date: '2022-07-03'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(lmtest)
+library(ggplot2)
+```
+
+```{r, results='hide'}
+data <- read.csv('./data.6.csv')
+data$Sex <- factor(data$Sex, labels = c("Male", "Female"))
+data$Improved <- as.numeric(data$Improved)
+colnames(data)[3] <- "Height"
+colnames(data)[4] <- "Weight"
+```
+
+```{r, results='hide'}
+sex.glm <- glm(Improved ~ Sex, data = data, family = "binomial")
+# H0: Sex is not a significant factor of Improved
+# HA: Sex is a significant factor of Improved
+summary((sex.glm))
+exp(coef(sex.glm))
+```
+
+```{r, results='hide'}
+# Reverse Sex for Male
+data$Sex<- factor(data$Sex, levels = rev(levels(data$Sex)))
+sex.glm <- glm(Improved ~ Sex, data = data, family = "binomial")
+summary((sex.glm))
+exp(coef(sex.glm))
+```
+
+```{r, results='hide'}
+# Weight_Sex
+weight.glm <- glm(Improved ~ Weight, data = data, family = "binomial")
+# H0: Weight is not a significant factor of Improved
+# HA: Weight is a significant factor of Improved
+summary(weight.glm)
+exp(coef(weight.glm))
+```
+
+```{r, results='hide'}
+# Height
+height.glm <- glm(Improved ~ Height, data = data, family = "binomial")
+# H0: Height is not a significant factor of Improved
+# HA: Height is a significant factor of Improved
+summary(height.glm)
+exp(coef(height.glm))
+```
+
+```{r, results='hide'}
+# Height_Weight interaction
+height_weight.glm <- glm(Improved ~ Weight : Height, data = data, family = "binomial")
+summary(height_weight.glm)
+exp(coef(height_weight.glm))
+```
+
+```{r, results='hide'}
+# Full combination
+full_combination <- glm(Improved ~ Height + Weight + Sex, data = data, family = "binomial")
+summary(full_combination)
+exp(coef(full_combination))
+```
+
+```{r, results='hide'}
+anova(sex.glm, height.glm, weight.glm, height_weight.glm, test = "Chisq")
+```
+
+## Analysis
+
+1. Sex ___[is]___ a significant predictor of Improved (β = ___1.0845___, p = ___1e-05___).
+2. Males show an ___[decrease]___ in the Odds of the subject’s symptoms by ___`r abs(0.338 - 1) * 100`___ %.
+3. When looking at Weight, Height, Sex, and the interaction of Weight and Height at the same time, the below terms are significant (delete terms that are not significant).
+
+    - Weight (β = ___0.06021___, p = ___2.33e-09___)
+    - Sex (β = ___1.0845___, p = ___1e-05___)
+    - Weight : Height (β = ___2.215e-04___, p = ___3.57e-06___)
+
+4. When comparing the two models from last week and the two from this week on AIC, the ___[Weight only]___ model is the best.
+
+## Table and Figures
+```{r}
+ggplot(data = data, aes(y = Improved, x = Height, color=Sex)) +
+  geom_point(position = position_jitter(height = 0.02, width = 0, seed = 0)) +
+  stat_smooth(formula = y ~ x, method = "glm", method.args = list(family="binomial"),
+              alpha = 0.1, fill = 'blue', fullrange = TRUE) +
+  theme_bw()
+
+ggplot(data = data, aes(y = Improved, x = Weight, color=Sex)) +
+  geom_point(position = position_jitter(height = 0.02, width = 0, seed = 0)) +
+  stat_smooth(formula = y ~ x, method = "glm", method.args = list(family="binomial"),
+              alpha = 0.1, fill = 'blue', fullrange = TRUE) +
+  theme_bw()
+```
+

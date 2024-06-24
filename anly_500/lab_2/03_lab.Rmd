@@ -1,0 +1,237 @@
+---
+title: "Introduction to Data Analytics 1"
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Part 1: Variables, Hypothesis, Designs
+
+*Title:* Offshore outsourcing: Its advantages, disadvantages, and effect on the American economy
+
+*Abstract*: The United States has trained some of the world's best computer programmers and technology experts. Despite all of this training, many businesses do not have a full understanding of information technology. As the importance of technology in the business world grows, many companies are wasting money on extensive technology projects. When problems arise, they expect that further investment will solve these issues. To prevent such problems, many companies have begun to outsource these functions in an effort to reduce costs and improve performance. The majority of these outsourced information technology and call center jobs are going to low-wage countries, such as India and China where English-speaking college graduates are being hired at substantially lower wages. The purpose of this study is to evaluate the positive and negative aspects of offshore outsourcing with a focus on the outsourcing markets in India and China, arguably the two most popular destinations for outsourcers. The cost savings associated with offshore outsourcing will be evaluated in relation to the security risks and other weakness of offshore outsourcing. In addition, an analysis of the number of jobs sent overseas versus the number of jobs created in the United States will be used to assess the effects that outsourcing is having on the American economy and job market. Finally, the value of jobs lost from the American economy will be compared to the value of jobs created. The goal of these analyses is to create a clear picture of this increasingly popular business strategy.
+
+Answer the following questions about the abstract above:
+
+1)	What is a potential hypothesis of the researchers?
+```{r 1.1}
+  # The researchers believe that there could be a strong positive correlation of companies outsourcing IT roles and the possible cost savings of each role being outsourced.
+```
+
+
+2)	What is one of the independent variables?
+```{r 1.2}
+  # An independent variable would be the 'where' variable.
+```
+
+    a.	What type of variable is the independent variable?
+```{r 1.2a}
+  # The variable is a categorical variable.
+```
+    
+
+3)	What is one of the dependent variables?
+```{r 1.3}
+  # A dependent variable would be the 'jobs' variable.
+```
+    a.	What type of variable is the dependent variable?
+```{r 1.3a}
+  # The variable is a continuous variable.
+```
+    
+    
+4)	What might cause some measurement error in this experiment?
+```{r 1.4}
+  # A possible can be seen with the 'cost' characteristics. We do not know the actual process or calculations used in achieving the tabulated values for both of the columns or do we know why there is a difference between how the two costs savings were calculated.
+```
+
+
+5)	What type of research design is the experiment?
+```{r 1.5}
+  # The research is designed as a correlation research.
+```
+
+    a.	Why?
+```{r 1.5a}
+  # The hypothesis seeks a link between moving American jobs oversees and the potential effects this decision would have on the American economy. By finding this link, researchers could then establish a correlation between the action and its potential effects.
+```
+
+6)	How might you measure the reliability of your dependent variable?
+```{r 1.6}
+  # We can measure the reliability of the data by measuring the cost savings of these positions in a previous year.
+```
+
+7)	Is this study ecologically valid?
+```{r 1.7}
+  # This study is ecologically valid as 
+```
+
+8)	Can this study claim cause and effect?
+```{r 1.8}
+  # This study cannot claim cause and effect.
+```
+
+    a.	Why/why not?
+```{r 1.8a}
+  # Although the study will discover points of correlation it does not necessarily mean the outsourcing of jobs would affect the American economy significantly. 
+```
+
+9)	What type of data collection did the researchers use (please note that #5 is a different question)?
+```{r 1.9}
+  # The researchers sampled the data using a cross-sectional method where study takes the the cost savings of several it positions within the time of the study.
+```
+
+# Part 2: Use the assessment scores dataset (03_lab.csv) to answer these questions.
+
+The provided dataset includes the following information created to match the abstract:
+
+- Jobs: the percent of outsourced jobs for a call center.
+- Cost: one calculation of the cost savings for the business.
+- Cost2: a separate way to calculate cost savings for the business.
+- ID: an ID number for each business.
+- Where: where the jobs were outsourced to. 
+
+```{r Outsourced Jobs summary}
+  outsourced_jobs <- read.csv('./03_data.csv')
+  #Clean the data a little
+  outsourced_jobs$jobs <- round(outsourced_jobs$jobs) # The decimals precision too long
+  
+  outsourced_jobs$cost <- round(outsourced_jobs$cost, digits = 2)#Reduce decimal places to 2
+  
+  outsourced_jobs$cost2 <- round(outsourced_jobs$cost2, digits = 2)#Applied the same for cost2
+  
+  summary(outsourced_jobs)
+
+```
+
+
+Calculate the following information:
+
+1)	Create a frequency table of the percent of outsourced jobs.
+
+```{r 2.1}
+  #If using the default packages in R
+  # transform(table(outsourced_jobs$jobs))
+  
+  #But I wanted to make the table a little more readable
+  library('plyr')
+  
+  #Count only the unique values in jobs
+  count(outsourced_jobs, vars = "jobs")
+```
+
+2)	Create histograms of the two types of cost savings. You will want to add the breaks argument to the hist() function. This argument adds more bars to the histogram, which makes it easier to answer the following questions:
+
+`hist(dataset$column, breaks = 15)` 
+
+15 is a great number to pick, but it can be any number. For this assignment, try 15 to see a medium number of bars. 
+```{r 2.2a}
+  #Hist 1
+      hist(outsourced_jobs$cost, breaks = 25, col = "maroon", xlab = "Cost of Outsourced Jobs", main = "Histogram of Cost 1 of Outsourced Jobs")
+```
+```{r 2.2b}
+    #Hist 2
+    hist(outsourced_jobs$cost2, breaks = 25, xlab = "Cost of Outsourced Jobs", main = "Histogram of Cost 2 of Outsourced Jobs", col = "cyan")
+```
+
+3)	Examine these histograms to answer the following questions:
+
+    a.	Which cost savings appears the most normal?
+```{r 2.3a}
+  # The first histogram(cost2 savings) visually appears the most normal.
+```
+    
+    
+    b.	Which cost savings data is multimodal?
+```{r 2.3b}
+  # The first histogram(cost1 savings) as it has two peaks making it bimodal.
+```
+    
+    
+    c.	Which cost savings data looks the most skewed (and in which direction positive or negative)?
+```{r 2.3c}
+  # The second histogram(cost2) has a positive skew where most of the values are on the lower end of the distribution.
+```
+    
+    
+    d.	Which cost savings data looks the most kurtotic?
+```{r 2.3d}
+  # Kurtotsis check for Cost Savings 1
+  moments::kurtosis(outsourced_jobs$cost)
+
+  # Kurtotsis check for Cost Savings 2
+  moments::kurtosis(outsourced_jobs$cost2)
+
+  # The second histogram looks the most kurtotic as its has a kutotic of 3.77 when compared to the first histogram with only a kurtotic of 2.69.
+```
+    
+4)	Calculate the z-scores for each cost savings, so they are all on the same scale.
+
+```{r 2.4a}
+    #Cost 1 Mean & Standard Deviation
+  cost1_mean = mean(outsourced_jobs$cost)
+  cost1_sd = sd(outsourced_jobs$cost)
+  
+  # Now we can calculate the z-score for each
+  # cost1_zscore <- round((outsourced_jobs$cost - cost1_mean)/cost1_sd, digits = 4)^2
+  cost1_zscore <- scale(outsourced_jobs$cost)
+
+```
+
+
+```{r 2.4b}
+  # Cost 2 Mean & Standard Deviation
+  cost2_mean = mean(outsourced_jobs$cost2)
+  cost2_sd = sd(outsourced_jobs$cost2)
+  
+  # Now we can calculate the zscore for each
+  # cost2_zscore <- round(((outsourced_jobs$cost2 - cost2_mean)/cost2_sd), digits = 4)^2
+  cost2_zscore <- scale(outsourced_jobs$cost2)
+
+```
+
+
+6)	How many of the cost saving scores were more extreme than 95% of the data (i.e., number of z-scores at a *p* < .05)?
+
+    a.	Cost Savings 1: 
+```{r 2.6a}
+  # 
+  transform(table(cost1_zscore < 0.05))
+```
+    
+    b.	Cost Savings 2: 
+```{r 2.6b}
+  # 
+  transform(table(cost2_zscore < 0.05))
+```
+    
+7)	Which business had:
+
+    a.	the highest cost savings?
+```{r 2.7a}
+  subset(outsourced_jobs, select = id, subset = cost >= max(outsourced_jobs[4:5]) | cost2 >= max(outsourced_jobs[4:5]))
+```
+    
+    b.	the the lowest cost savings?
+```{r 2.7b}
+  subset(outsourced_jobs, select = id, cost <= min(outsourced_jobs[4:5]) | cost2 <= min(outsourced_jobs[4:5]))
+```
+    
+    c.  Use both cost savings columns and find the ID number of the business with the lowest and highest z-score.
+```{r 2.7c}
+  #First I need to combine the z-scores of both the costs savings into a single data frame
+  temp_df <- data.frame(outsourced_jobs$id, outsourced_jobs$cost, cost1_zscore, outsourced_jobs$cost2, cost2_zscore)
+  
+  # Then we need to find the min and max of z-scores for both cost savings.
+
+#First the lowest
+  subset(temp_df, select = c(outsourced_jobs.id, outsourced_jobs.cost, outsourced_jobs.cost2), (min(temp_df[,3]) >= outsourced_jobs.cost) && (min(temp_df[,5]) == outsourced_jobs.cost2))
+
+  
+```

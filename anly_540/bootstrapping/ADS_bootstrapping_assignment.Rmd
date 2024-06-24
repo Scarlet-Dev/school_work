@@ -1,0 +1,150 @@
+---
+title: "Bootstrapping, Effect Sizes, and Nonparametric Regression"
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load the Libraries + Functions
+
+Load all the libraries or functions that you will use to for the rest of the assignment. It is helpful to define your libraries and functions at the top of a report, so that others can know what they need for the report to compile correctly.
+
+```{r load libraries}
+library(boot)
+library(nlme)
+library(MOTE)
+library(tools)
+```
+
+For this assignment, you will use the same Congressional data shown in the lecture and will use the same bootstrapping method to test another DV (you can use any column after WC). The goal of the larger project, that this data is drawn from, was to predict how a member of Congress might vote on a bill from the words they used in their speech. In the lecture I showed you the results of a composite complexity measure, here I want you to test differences in supporters and opposers of the bill by analyzing a different aspect of their language. Columns 14 to 93 are based on output of LIWC2007. These columns are dictionary-based language measures indicating how much of a text (in this case a Congressional speech) falls into each dictionary. Pick a column as your DV to complete the assignment. To learn more about what the columns mean, check out this [link](https://www.liwc.net/LIWC2007LanguageManual.pdf). To learn about the newer version of the LIWC software, check out this [link](http://liwc.wpengine.com/wp-content/uploads/2015/11/LIWC2015_LanguageManual.pdf).
+
+## Load the Data
+
+Load both datasets for the assignment
+
+```{r data}
+senateIraq <- read.csv("senate iraq.csv")
+houseIraq <- read.csv("house iraq.csv")
+```
+
+## Initialize the Bootstrap Function
+
+Here is the bootstrap function to use. Don't change anything, just run the code chunk.
+
+```{r bootstrap function}
+bootstrap_values <- function(formula, dataset, nsim){
+  
+  store_mean <- rep(NA, nsim)
+  store_sd <- rep(NA, nsim)  
+  attempts <- 0
+  #loop until you have enough
+  while(attempts < nsim){
+    
+    #create a dataset
+    d <- dataset[sample(1:nrow(dataset), 
+                        size = nrow(dataset),
+                        replace = TRUE), ]
+    #test the model
+    tryCatch({
+    
+      model1 = lme(formula, 
+             data = d, 
+             method = "ML", 
+             na.action = "na.omit",
+             random = list(~1|Name),
+             control=lmeControl(opt = "nlminb")) 
+      meanvalue = summary(model1)$tTable[1]
+      sdvalue = summary(model1)$tTable[2] * sqrt(nrow(d))
+      attempts <- attempts + 1
+      store_mean[attempts] <- meanvalue
+      store_sd[attempts] <- sdvalue
+      return(store_mean, store_sd, attempts)
+    }, error = function(x){})
+  }
+  
+  return(list("mean" = store_mean, "sd" = store_sd))
+}
+```
+
+## Testing Difference in House Data
+
+With the houseIraq data, use the code from the lecture, but replace the word 'complexity' with the name of the column you are using as your DV.
+
+```{r house}
+houseIraq$present = with(houseIraq, scale(excl, center = TRUE, scale = TRUE)+scale(negate, center = TRUE, scale = TRUE)+scale(tentat, center = TRUE, scale = TRUE)+scale(conj, center = TRUE, scale = TRUE))
+
+groups = c(0, 1)
+nsim = 1000
+for(group in groups){
+    data = subset(houseIraq, Oppose.Support==group)
+    f = as.formula('present~1') 
+    bs = bootstrap_values(f,data,nsim)
+    if(group==0){
+      mean_oppose = mean(bs$mean)
+      sd_oppose = mean(bs$sd)
+      n_oppose = length(na.omit(data$present))
+    }
+    if(group==1){
+      mean_support = mean(bs$mean)
+      sd_support = mean(bs$sd)
+      n_support = length(na.omit(data$present))
+    }
+  }
+  d.ind.t(m1 = mean_oppose, m2 = mean_support, 
+                sd1 = sd_oppose, sd2 = sd_support,
+                n1 = n_oppose, n2 = n_support, 
+                a = .05)
+```
+
+## Testing Difference in Senate Data
+
+With the senateIraq data, use the code from the lecture, but replace the word 'complexity' with the name of the column you are using as your DV.
+
+```{r senate}
+senateIraq$present = with(senateIraq, scale(excl, center = TRUE, scale = TRUE)+scale(negate, center = TRUE, scale = TRUE)+scale(tentat, center = TRUE, scale = TRUE)+scale(conj, center = TRUE, scale = TRUE))
+
+groups = c(0, 1)
+for(group in groups){
+    data = subset(senateIraq, Oppose.Support==group)
+    f = as.formula('present~1')
+    bs = bootstrap_values(f,data,nsim)
+    if(group==0){
+      mean_oppose = mean(bs$mean)
+      sd_oppose = mean(bs$sd)
+      n_oppose = length(na.omit(data$present))
+    }
+    if(group==1){
+      mean_support = mean(bs$mean)
+      sd_support = mean(bs$sd)
+      n_support = length(na.omit(data$present))
+    }
+  }
+  d.ind.t(m1 = mean_oppose, m2 = mean_support, 
+                sd1 = sd_oppose, sd2 = sd_support,
+                n1 = n_oppose, n2 = n_support, 
+                a = .05)
+```
+
+## Interpret the Results
+
+-   QUESTION: Did you find differences in your chosen DV? What were the differences and were they consistent across the two datasets?
+
+    -   ANSWER: Using 'present' as our DV we found some differences between how the House and Senate opposed the bill based on their language. For the House, representatives (M = 0.69, SD = 3.62) used significantly more present tense language than those supporting the bill (M = -0.58, SD = 3.36): d = 0.37, 95% CI [0.12, 0.61]. In the Senate, senators (M = 0.30, SD = 3.89) used less present tense wording that those opposing the bill (M = -0.17, SD = 3.76): d = 0.12, 95% CI [-0.24, 0.49] making the difference statistically not significant. The differences could be attributed to the size of the Senate being smaller that the House.
+
+## Discussion Questions
+
+-   QUESTION: Why do you think it would be important to consider effect sizes when doing analytics in industry? How do you think the topics this week relate to your current or future career? (Write at least a full paragraph)
+
+    -   ANSWER: Effect size are used to indicate the difference between two groups of data, in this case population versus sample size data. In the case of the house and senate data the effective size would indicate how practical the sample size and model would be to the population it was sampled from. For example, the effective size for the house is 0.37, a small effective size while the senate had an effective size of 0.13. From this we can tell that the models for both the house and senate may not work well with the current sample size. I believe that knowing how effective size in regards to something like user data from an e-commerce website would be useful to know.
+
+-   QUESTION: Describe a set of texts and research question that interests you that could be explored using bootstrapping. Basically, what is a potential application of bootstrapping to another area of research?
+
+    -   ANSWER: One set of texts that interests me is a corpus of news articles related to the state of the economy. The research question that could be explored using bootstrapping is whether there are significant differences in the language used in news articles published by different news outlets. By collectiong a large dataset of news articles about the economy's state from several news outlets. We can then bootstrap from the dataset to create a model that can estimate accuracy and variability. The model at this point would be trained to predict the news outlet based on the language used.
+
+-   QUESTION: Describe a set of texts and research question that interests you that could be explored using nonparametric regression. Basically, what is a potential application of nonparametric regression to another area of research?
+
+    -   ANSWER:  A set of texts one could explore is the user preference on snack products. The research question that could be explored using bootstrap is whether there are significant user preferences between new snack products and currently established snack items. It would be expected that this study would have a very large dataset with consumer preference and product information. Then using non-parametric regression we then estimate the relationship between taste preference between the two snacks and compare with consumer feedback. The analysis would allow us to examine whether the new product is doing better than the previous product based on user tastes and sentiments between the snacks.

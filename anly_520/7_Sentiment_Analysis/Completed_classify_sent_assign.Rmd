@@ -1,0 +1,356 @@
+---
+title: 'Classification + Sentiment Assignment'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Be sure to list the group members at the top! This assignment is the first component for your class project. Be sure all group members contribute, *and* each group member must submit the assignment individually. 
+
+You can use either *R* or Python or both for this assignment. You should use the code and packages we used in class assignments, but these can be a mix and match of each computing language. You will add the appropriate type of code chunk for each section depending on the language you pick for that section. 
+
+## Libraries / R Setup
+
+- In this section, include the libraries you need for the *R* questions.  
+
+```{r}
+##r chunk
+library(reticulate)
+```
+
+- In this section, include import functions to load the packages you will use for Python.
+
+```{python}
+##python chunk
+import pandas as pd
+import numpy as np
+import re
+
+# ML
+import sklearn
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
+from sklearn.naive_bayes import MultinomialNB
+
+# text normalization
+import nltk
+from nltk import tokenize
+from nltk.stem import PorterStemmer
+from bs4 import BeautifulSoup
+ps = PorterStemmer()
+import contractions
+import unicodedata
+
+# for the lexicons
+import textblob
+from afinn import Afinn
+#load the model 
+afn = Afinn(emoticons=True)
+
+# test feature extraction
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+import gensim
+```
+
+```{python}
+def document_vectorizer(corpus, model, num_features):
+    vocabulary = set(model.wv.index_to_key)
+    def average_word_vectors(words, model, vocabulary, num_features):
+        feature_vector = np.zeros((num_features,), dtype="float64")
+        nwords = 0.
+        for word in words:
+            if word in vocabulary: 
+                nwords = nwords + 1.
+                feature_vector = np.add(feature_vector, model.wv[word])
+        if nwords:
+            feature_vector = np.divide(feature_vector, nwords)
+        return feature_vector
+    features = [average_word_vectors(tokenized_sentence, model, vocabulary, num_features)
+                    for tokenized_sentence in corpus]
+    return np.array(features)
+
+STOPWORDS = set(nltk.corpus.stopwords.words('english')) #stopwords
+STOPWORDS.remove('no')
+STOPWORDS.remove('but')
+STOPWORDS.remove('not')
+
+def clean_text(text):
+    text = BeautifulSoup(text).get_text() #html
+    text = text.lower() #lower case
+    text = contractions.fix(text) #contractions
+    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8', 'ignore') #symbols
+    #text = ' '.join([ps.stem(word) for word in text.split()]) #stem
+    text = ' '.join(word for word in text.split() if word not in STOPWORDS) # stopwords
+    return text
+
+```
+
+
+## Import Subtitles
+
+- Import your subtitle data for the movie or TV show that you selected in the course proposal - use the clean version from the previous assignment.
+
+```{python}
+ep1 = ''
+with open("../exports/dub_ep1.txt", "r") as f:
+	ep1 = f.read()
+```
+
+
+## Classification
+
+- Pick several nouns and/or verbs from your previous assignment. Create a column in the dataframe that indicates if that line from the movie/TV show includes that word or does not include that word. You can use 0 and 1 or any labels that make sense to you. Remember, we covered regular expression detection and deletion in the raw text assignments! 
+
+```{python}
+# Clean sentences here
+sentences = tokenize.sent_tokenize(ep1)
+DF = pd.DataFrame({"sentences": sentences})
+DF["clean_sentences"] = DF['sentences'].apply(clean_text)
+```
+
+
+```{python}
+pop_words = ["said", "player", "game", "go", "created", "nervegear", "kirito", "kayaba", "akihiko", "klein", "friends", "people", "bug", "boss", "let", "look", "looks", "log", "skills", "skill", "think", "world", "know"]
+pattern = '|'.join(pop_words)
+
+DF['matched_pattern'] = [bool(re.search(re.compile(pattern), sent)) for sent in DF['sentences']]
+DF.describe()
+```
+
+
+- Once you have created this column, use string replacement to delete that word from your subtitles. We will take the word out to see if we can predict when it is used - if you leave it in, it's a perfect predictor! 
+
+
+```{python}
+DF['new_sentences'] = [re.sub(re.compile(pattern), " ", sent) for sent in DF['sentences']]
+```
+
+
+- Use *two* feature extraction methods and *two* machine learning algorithms to determine if you can predict when your noun or verb will be used. You should include four different classification reports below. 
+
+
+```{python}
+# Data train/test split
+train_corpus, test_corpus, train_label_names, test_label_names = train_test_split(np.array(DF['new_sentences'].apply(lambda x:np.str_(x))),
+  np.array(DF['matched_pattern']), 
+  test_size=0.10, 
+  random_state=8393)
+
+train_corpus.shape, test_corpus.shape
+ 
+pd.DataFrame(train_label_names).value_counts()
+pd.DataFrame(test_label_names).value_counts()
+
+# must tokenize before you build 
+tokenized_train = [nltk.tokenize.word_tokenize(text)
+                   for text in train_corpus]
+tokenized_test = [nltk.tokenize.word_tokenize(text)
+                   for text in test_corpus]
+                   
+# build Bag of Words with TFIDF features on Episode 1
+tv = TfidfVectorizer(use_idf=True, min_df=0.0, max_df=1.0)
+
+# apply to train and test
+tv_train_features = tv.fit_transform(train_corpus)
+tv_test_features = tv.transform(test_corpus)
+
+# look at feature shape
+print('TFIDF model:> Train features shape:', tv_train_features.shape, ' Test features shape:', tv_test_features.shape)
+```
+
+
+```{python}
+# Word2Vec model
+w2v_num_features = 50
+w2v_model = gensim.models.Word2Vec(tokenized_train, #corpus
+            vector_size=w2v_num_features, #number of features
+            window=8, #size of moving window
+            sg = 0) #cbow model
+            
+avg_wv_train_features = document_vectorizer(corpus=tokenized_train, model=w2v_model,
+                                                     num_features=w2v_num_features)
+avg_wv_test_features = document_vectorizer(corpus=tokenized_test, model=w2v_model,
+                                                    num_features=w2v_num_features)
+
+avg_wv_train_features.shape
+avg_wv_test_features.shape
+```
+
+
+```{python}
+## build a blank model LR
+lr_t = LogisticRegression(penalty='l2', solver='lbfgs', multi_class='ovr',
+                        max_iter=1000, C=1, random_state=42)
+# fit the data to it 
+lr_t.fit(tv_train_features, train_label_names)
+ 
+# build a blank model
+lr_w = LogisticRegression(penalty='l2', solver='lbfgs', multi_class='ovr',
+                        max_iter=1000, C=1, random_state=42)
+# fit the data to it 
+lr_w.fit(avg_wv_train_features, train_label_names)
+ 
+avg_wv_train_features.min()
+avg_wv_test_features.min()
+ 
+avg_wv_train_features = avg_wv_train_features + .5
+avg_wv_test_features = avg_wv_test_features + .5
+ 
+ 
+## build a blank MNNB model
+mnb_t = MultinomialNB(alpha=1)
+# fit the data to it 
+mnb_t.fit(tv_train_features, train_label_names) # TF-IDF
+ 
+# build a blank model
+mnb_w = MultinomialNB(alpha=1)
+# fit the data to it 
+mnb_w.fit(avg_wv_train_features, train_label_names) # Word2Vec
+```
+
+```{python}
+# predict new data points 
+y_pred_t = lr_t.predict(tv_test_features)
+# print out report 
+print("Logistic Regression (TF-IDF)\n",classification_report(test_label_names, y_pred_t))
+ 
+# predict new data points 
+y_pred_w = lr_w.predict(avg_wv_test_features)
+# print out report 
+print("Logistic Regression (Word2Vec)\n", classification_report(test_label_names, y_pred_w))
+ 
+# predict new data points 
+y_pred_t_m = mnb_t.predict(tv_test_features)
+# print out report 
+print("Multinomial NB (TF-IDF)\n", classification_report(test_label_names, y_pred_t_m))
+ 
+# predict new data points 
+y_pred_w_m = mnb_w.predict(avg_wv_test_features)
+# print out report 
+print("Multinomial NB (Word2Vec)\n", classification_report(test_label_names, y_pred_w_m))
+```
+
+
+### Interpretation
+
+- Can you predict when the noun or verb will occur? Remember 50/50 is chance!
+
+Based on the models' results the noun and/or verbs can be predicted but not as effectively as thought. The two models that used Word2Vec did not evaluate the Positive values in the dataset and will be disregarded.
+
+- What combination of feature extraction and algorithm created the best prediction for your word choice?
+
+Although the models did not perform well overall some models + feature extraction techniques did better than others. The third model, Multinomial NB + TF-IDF performed the best relative to the other models.
+
+- Print out ten examples of misclassified spoken sections. Do you see any pattern that may help inform a better process to predict word choice?
+
+```{r}
+examples <- cbind.data.frame(py$test_corpus, py$test_label_names, py$y_pred_t)
+colnames(examples) <- c("sentences", "test", "real")
+examples$sentences[examples$test != examples$real][1:10]
+```
+In the misclassified sections we see some trends. One trend is that questions give the model some issues. Another is that certain sections that are ambiguous in terms of verb usage such as example 2, 8, 10. Although we can guess the correct verb as 'think' it could also allow other verbs based on context such this if given the choice. Some outliers are sentences that are only punctuations or do not have any of the popular words (i.e 1, 3, 7, 9).
+
+## Sentiment 
+
+- Use *one* of the unsupervised lexicon techniques to create sentiment scores for your movie/TV show. 
+
+```{python}
+# Using TextBlob we will find the sentiment scores for both clean and stem of the sentences.
+
+DF['new_sentences_clean'] = DF['new_sentences'].apply(clean_text)
+DF['tb_new_clean_sentences'] = [textblob.TextBlob(sent).sentiment.polarity for sent in DF['new_sentences_clean']]
+```
+
+```{python}
+# dichotomize
+DF['tb_new_clean_sentences_label'] = ['positive' if score >=0.0 else 'negative' for score in DF['tb_new_clean_sentences']]
+
+DF['tb_new_clean_sentences_label'].value_counts()
+```
+
+- What is the overall sentiment of your movie/TV show? How would you interpret the scores provided? 
+
+Overall, this episode of the series is majority positive. It should be noted that some of the sentences have a sentiment score of only 0. Although this would be considered as neutral in other cases, in this example neutral sentences are considered positive.
+
+- Using the movie reviews mini dataset provided online, create a sentiment tagging model (one feature extraction method + one algorithm). 
+
+```{python}
+MV = pd.read_csv('./movie_review.csv')
+MV.describe()
+```
+
+```{python}
+MV['review_clean'] = MV['review'].apply(clean_text)
+
+MV['review_clean_sentiment'] = [afn.score(rev) for rev in MV['review_clean']]
+MV['review_clean_sentiment_label'] = ['positive' if score >= 0.0 else 'negative' for score in MV['review_clean_sentiment']]
+
+MV['review_clean_sentiment_label'].value_counts()
+```
+
+```{python}
+print('TextBlob Sentiment ', classification_report(y_true = MV['sentiment'], y_pred = MV['review_clean_sentiment_label']))
+```
+
+
+```{python}
+MV['review_clean'] = MV['review_clean'].str.replace(r'[^a-zA-Z0-9\s]|\[|\]', ' ')
+
+train_reviews, test_reviews, train_labels, test_labels = sklearn.model_selection.train_test_split(MV['review_clean'], MV['sentiment'], random_state = 1876, test_size = .10)
+
+train_reviews.shape
+test_reviews.shape
+```
+
+```{python}
+tv2 = TfidfVectorizer(use_idf=True, min_df=0.0, max_df=1.0, ngram_range=(1,2), sublinear_tf=False)
+
+mvtv_train_feat = tv2.fit_transform(train_reviews)
+mvtv_test_feat = tv2.transform(test_reviews)
+
+mvtv_train_feat.shape
+mvtv_test_feat.shape
+```
+
+```{python}
+lr = LogisticRegression(penalty='l2', max_iter=1000, C=1)
+lr_tv_model = lr.fit(mvtv_train_feat, train_labels)
+lr_tv_predict = lr_tv_model.predict(mvtv_test_feat)
+```
+
+```{python}
+print('Movie Review Sentiment Results\n', classification_report(y_true = test_labels, y_pred = lr_tv_predict))
+```
+
+
+- With this new model, create sentiment scores for your movie/TV show. 
+
+```{python}
+new_ep1_features= tv2.transform(DF['clean_sentences'])
+new_ep1_features.shape
+```
+
+```{python}
+lr_ep1_predict = lr_tv_model.predict(new_ep1_features)
+DF['sentiment'] = lr_ep1_predict
+DF['sentiment'].value_counts()
+```
+
+- What is the overall sentiment using the new model of sentiment tagging? How would you interpret the scores provided?
+
+From the prediction results we see that this episode of the series has an positive sentiment. At a glance this could be in direct contrast with the premise of the show based on the This could be interpreted as a surprise twist where most of the positive sentences appear at the beginning of the episode while after the surprise twist most of the negative sentences appear.
+
+## Interpretation
+
+- Using classification techniques, can we reasonably predict word context? 
+
+Classification is one of the best ways of predicting results that have a definitive binary or multinomial selections. However, classifying text or images can be difficult. It is even more difficult to predict word context based on sentence structure. Indeed, classification techniques can help us predict word context but requires additional word processing and enough data to build an effective model.
+
+- Does the sentiment analysis match your expectation? Or does the analysis indicate more positive/negative that you expected? 
+
+The analysis of Episode 1 of Sword Art Online did not meet expectation of a negative outlook based on previous showings of this episode. Initially, it was expected that the surprise twist in the episode would be the cause of the negative outlook.

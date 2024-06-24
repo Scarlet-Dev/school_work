@@ -1,0 +1,103 @@
+---
+title: "ANLY 510 Exam 1 Q2"
+author: Akane Simpson
+date: 12/12/2021
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(moments)
+library(readxl)
+library(pastecs) 
+library(compute.es) 
+```
+
+# Exam Question
+The data below represents the number of driving errors made by drivers who did or did not attend driving school (coded 1 if they didn’t, 2 if they did) and at day or night (coded 1 for day, 2 for night). Testing was performed on Saturdays and Sundays (coded 1 Saturday, 2 Sunday).
+
+Determine if there is any effect of driving school and whether its effect is influenced by lighting conditions. Be sure to include a complete analysis (i.e., all assumptions checked, and full understanding of effects garnered) and a clear summary with all needed statistical details included.
+
+From the problem we can identify the variables that are independent, dependent, conditions and blockers
+- errorsmade (Dependent)
+- attendeddrivingschool (Independent)
+- dayornight (Condition)
+- dayoftesting (Blocker)
+
+# R Code
+```{r, eval=FALSE}
+Q2 = read_xlsx('~/Downloads/Exam1Q2.xlsx')
+
+str(Q2)
+summary(Q2)
+Q2$attendeddrivingschool = factor(Q2$attendeddrivingschool)
+Q2$dayornight = factor(Q2$dayornight)
+Q2$dayoftesting = factor(Q2$dayoftesting)
+
+# Skewness
+plot(density(Q2$errorsmade))
+agostino.test(Q2$errorsmade)
+# p value < 0.05, skewness assumption not made
+
+# Kurtosis
+anscombe.test(Q2$errorsmade)
+# p value > 0.05. Kurtosis assumption made
+
+# Normality
+qqnorm(Q2$errorsmade)
+shapiro.test(Q2$errorsmade)
+# p value < 0.05. Normality assumption made
+
+# Independence
+Q2.lm = lm(errorsmade ~ factor(dayornight),Q2)
+Q2.resd = resid(Q2.lm)
+plot(Q2$errorsmade, Q2.resd)
+abline(0,0)
+# Independence assumption made
+
+# Equal Variance
+bartlett.test(Q2$errorsmade, factor(Q2$attendeddrivingschool))
+tapply(Q2$errorsmade, factor(Q2$dayornight), var)
+#  Variance value is less than 3. Variance assumption made
+
+# Additivity
+Q2.add = aov(errorsmade ~ attendeddrivingschool*dayornight, Q2)
+summary(Q2.add)
+# There is a significant interaction to attendeddriving school with
+# the dayornight variable.
+
+Q2.block = aov(errorsmade ~ attendeddrivingschool*dayoftesting, Q2)
+summary(Q2.block)
+# There is no significant interaction to attendeddrivingschool with
+# the dayornight variable.
+
+# ANOVA Analysis
+Q2.aov = aov(errorsmade ~ attendeddrivingschool, Q2)
+Q2.aov2 = aov(errorsmade ~ attendeddrivingschool + dayornight, Q2)
+Q2.aov3 = aov(errorsmade ~ attendeddrivingschool + dayoftesting, Q2)
+
+anova(Q2.aov, Q2.aov2, Q2.aov3)
+# From the results adding dayornight to attendeddrivingschool has a significant
+# difference to the model. adding dayoftesting does not show a significant 
+# difference but does explain some of the variance.
+
+summary(Q2.aov2)
+
+interaction.plot(Q2$attendeddrivingschool, Q2$dayornight, Q2$errorsmade)
+
+# Post Hoc Analysis
+TukeyHSD(Q2.aov2)
+
+# Effect Size
+by(Q2$errorsmade, Q2$attendeddrivingschool, stat.desc)
+
+mes(0.202, 0.283, 0.07, 0.12, 24, 24)
+```
+
+# APA Summary
+
+A study was conducted to investigate whether, the average errors made by a student on a driving exam  taken together, if the student had attended a driving school before, the time of day affected individuals’ overall errors made. Observations from the study were analyzed by conducting a two-way analysis of variance with the three independent variables (attendeddrivingschool, dayornight or dayoftesting) and the dependent variable (errorsmade) using R version 4.12.
+
+First, all assumptions are met and there is no adjustment made. ANOVA analysis revealed there is statistically significant interaction effect (F(1, 44) = 4.733, p = .035). Results also suggest that the errors made on the driving exam were affected by the time of day of (day or night) the participants (F(1, 44) = 22.481, p < .001) and between attending and not attending driving school (F(1, 44) = 13.146, p < .001).
+
+The effect size was large D = 0.82 between attending and not attending driving school.

@@ -1,0 +1,231 @@
+---
+title: "ANLY 500 Exam"
+author: "Akane Simpson"
+date: "10/12/2021"
+output: word_document
+---
+
+```{r init_setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(corrplot)
+library(car)
+library(ggplot2)
+library(moments)
+
+cleanup <- theme(panel.grid.major = element_blank(), 
+                panel.grid.minor = element_blank(), 
+                panel.background = element_blank(), 
+                axis.line.x = element_line(color = "black"),
+                axis.line.y = element_line(color = "black"),
+                legend.key = element_rect(fill = "white"),
+                text = element_text(size = 15))
+
+iris = read.csv('./iris_exams.csv')
+```
+
+
+# Data Screening
+
+## Accuracy
+  For accuracy we will need to factor the Species column and convert our Id column from character to numbers.
+
+```{r accuracy}
+iris$Species <- factor(iris$Species, levels = c('setosa','versicolor','virginica'))
+iris$id <- 1:nrow(iris)
+
+summary(iris)
+```
+
+
+## Missing Values
+We can skip since we have no NA's in our summary of iris.
+
+## Outliers
+```{r outliers,echo=FALSE}
+
+mahal_summ = mahalanobis(iris[,-c(1,2)],
+                         colMeans(iris[,-c(1,2)]),
+                         cov(iris[,-c(1,2)]))
+
+df = ncol(iris)-2
+n = nrow(iris)
+
+cutoff = qchisq(1-0.001, df)
+total_outliers = sum(mahal_summ > cutoff)
+
+iris = subset(iris, mahal_summ < cutoff)
+```
+
+There are a total of `r total_outliers` with a Mahalanobis cutoff of `r round(cutoff, 2)` and a $d.f =$ `r df`.
+
+\newpage
+# Assumptions
+
+Create the fake linear model, fitted values and standardized values.
+```{r assumptions_setup}
+random <- rchisq(nrow(iris),7)
+fake = lm(random ~ ., iris[,-c(1,2)])
+
+fitvals = scale(fake$fitted.values)
+standardized = rstudent(fake)
+```
+
+
+## Normality
+```{r skew & kurtosis,include=FALSE}
+iris.skew = skewness(standardized)
+iris.kur = kurtosis(standardized) - 3
+```
+
+```{r normality, echo=FALSE}
+hist(standardized, breaks = 15)
+```
+
+  The histogram shows a mostly normal distribution with a slight right tail skew and a relatively high peak in the center. This is supported by our values for $skew = $ `r round(iris.skew,2)` and a remaining $kurtosis = $ `r round(iris.kur,2)`. From these inference we can assume that the data set has normality.
+
+## Linearity
+```{r linearity,echo=FALSE}
+{qqnorm(standardized)
+  abline(0,1)}
+```
+
+  The plot shows the data points fall fairly well on the theoretical line and has tails that reflect what is presented in the previous normality histogram. We can assume that the data set has linearity.
+  
+
+## Homogeneity/Homoscedasticity
+```{r homogen/homosce, echo=FALSE}
+{plot(standardized,fitvals)
+  abline(0,0)
+  abline(v=0)}
+```
+
+  The points in the scatter plot above is mostly concentrated around the origin but is not evenly distributed on all sides. We can assume that the data set has homogeneity and homoscedasticity.
+  
+
+## Exam Question 1 - Correlation Analysis
+
+### Correlation Matrix
+```{r correlation,echo=FALSE}
+iris$Species <- as.numeric(iris$Species)
+iris.cor = cor(iris[,-1], method = 'pearson')
+
+print(iris.cor)
+```
+
+### Correlogram
+```{r correlogram,echo=FALSE}
+corrplot(cor(iris[,-1], method = 'pearson'), type = 'upper')
+```
+
+From the correlation matrix and correlogram we can see the relations between the variables and infer which variable have a greater effect on species size.
+
+
+```{r scatter1, echo=FALSE}
+iris.scatter1 <- ggplot(iris[,-1], aes(Sepal.Length, Petal.Length, group = Species, color = as.factor(Species))) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x, fullrange = TRUE) + 
+  scale_color_manual(name = "Species", labels = c("setosa", "versicola", "virginica"), 
+                     values = c("steelblue","tomato", "forestgreen")) + 
+  labs(x = "Sepal Length", y = "Petal Length", title = "Scatter Plot of Species\n Petal Length against Sepal Length") + 
+  coord_cartesian(ylim = c(0,8)) + 
+  cleanup
+iris.scatter1
+```
+
+
+```{r scatter2, echo=FALSE}
+iris.scatter2 <- ggplot(iris[,-1], aes(Sepal.Length, Petal.Width, group = Species, color = as.factor(Species))) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x, fullrange = TRUE) + 
+  scale_color_manual(name = "Species", labels = c("setosa", "versicola", "virginica"), 
+                     values = c("steelblue","tomato", "forestgreen")) + 
+  labs(x = "Sepal Length", y = "Petal Width", title = "Scatter Plot of Species\n Petal Width against Sepal Length") + 
+  cleanup
+iris.scatter2
+```
+
+
+### Variance
+```{r variance, echo=FALSE}
+var(iris[,-1])
+```
+
+
+### Covariance using Pearson
+```{r covariance, echo=FALSE}
+cov(iris[,-1], method = 'pearson')
+```
+
+
+#### Analysis Summary - Correlation
+
+From the matrix and correlogram we see that the relations with the strongest is correlation is Species ~ Petal.Length (`r round(iris.cor[[4]],2)`), Species ~ Petal.Width (`r round(iris.cor[[5]],2)`) and Species ~ Sepal.Length (`r round(iris.cor[[2]],2)`). Additionally, there is a moderate relationship with Sepal.Length ~ Petal.Length (`r round(iris.cor[[9]],2)`) and Sepal.Length ~ Petal.Width (`r round(iris.cor[[10]],2)`). Finally, we see that Sepal.Width has a weak negative relationship with all other variables in the data set. It can be said that the petal length and width is strongly affected by the species of iris and moderately affected by the sepal length. 
+
+
+## Exam Question 2 - Linear Regression Analysis
+
+```{r linear regression}
+
+# Start with Sepal Length
+model = lm(Species ~ Sepal.Length, iris)
+
+# Then include Sepal.Width
+model = update(model, .~. + Sepal.Width)
+
+# Then include Petal.Length
+model = update(model, .~. + Petal.Length)
+
+# Then include Petal.Width
+model = update(model, .~. + Petal.Width)
+model.summ = summary.lm(model)
+
+print(model.summ)
+
+# We notice that Sepal.Width is affecting our model so we can remove it
+model = update(model, .~. - Sepal.Width)
+iris.lm = summary.lm(model)
+
+# Final model
+print(iris.lm)
+```
+
+### Regression Visualized
+```{r, echo=FALSE, align='center'}
+avPlots(model)
+```
+
+#### Analysis Summary - Linear Regression
+  Our results show what our models is most affected by a Sepal.Length ($coefficient=$ `r round(iris.lm[[4]][[2]],2)`), Petal.Length ($coefficient=$ `r round(iris.lm[[4]][[3]],2)`)  and Petal.Width ($coefficient=$ `r round(iris.lm[[4]][[4]],2)`). We removed Sepal.Width as it did not have enough significance in our linear regression model. Under the Regression Visualized section we see how these predictors affect the model. In the first chart we see that Species is affected by Sepal.Length based on its moderate negative relation and is confirmed by the our linear regression results. The second and third plot(Species ~ Petal.Length, Species ~ Petal.Width) also reflects this relation. Overall, the model we established fits well with our data with adjusted $R^{2}=$ `r round(iris.lm[[9]],2)` with an F-statistic, $F(294,4)=$ `r round(iris.lm[[10]][[1]],2)` and a p-value, $p=$ `r iris.lm[[4]][[13]]`.
+
+
+## Exam Question #3 - ANOVA
+
+### ANOVA Summary
+```{r}
+iris.aov = aov(Species ~ . - id, data = iris)
+
+anova.summ = anova(iris.aov)
+
+anova.summ;
+```
+
+
+### Analysis Summary - ANOVA
+  In this ANOVA analysis we see that the all variables have a significance. It should also be noted that the Sum SQ and the Mean Sq are the same for each predictor which is caused by the $d.f=$ 1. We also have a small Mean Sq Residual (`r round(anova.summ[[3]][[5]],2)`). The sepal and petal length and the largest F value (`r round(anova.summ[[4]][[1]],2)`,`r round(anova.summ[[4]][[3]],2)`) which can indicate that the two variables have a high variation from the mean. Sepal and petal width also have a moderately high variance from the mean (`r round(anova.summ[[4]][[2]],2)`,`r round(anova.summ[[4]][[4]],2)`). The variance for each variable would help in deciding an hypothesis testing where the H0 would be that all groups have equal sepal length and width and petal length and width while the alternative would be there is a difference between the groups. In the case of a hypothesis test we could reject the null hypothesis based on the p values for sepal length and width and petal length at `r anova.summ[[5]][[1]]` and petal width's p-value at `r anova.summ[[5]][[4]]`
+
+
+## Exam Question #4 - The t-test
+
+### t-test
+```{r q4}
+iris = subset(iris, Species != 3)
+iris.t.test = t.test(Sepal.Length ~ Species, data = iris, var.equal = FALSE, paired = FALSE)
+
+print(iris.t.test)
+```
+### Analysis Summary - t-test
+ 
+  From the t-test we can see that the mean for both groups' petal length with group 1 ($\mu_{setosa} =$ `r round(iris.t.test[[5]][[2]],2)`) and group 2 ($\mu_{versicolor} =$ `r round(iris.t.test[[5]][[2]],2)`). Additionally, the test produced a confidence interval with an assumed alpha of $\alpha = 0.05$ and $df =$ `r round(iris.t.test[[2]][[1]],0)`, leaving us an interval of (`r iris.t.test[[4]]`). Finally, the t-test produced $t$(`r round(iris.t.test[[2]][[1]],0)`) = `r round(iris.t.test[[1]][[1]],2)`.
+
+  Although the two means are close the mean difference ($\mu_{setosa} - \mu_{versicolor} =$ `r round(iris.t.test[[5]][[2]] - iris.t.test[[5]][[1]],2)`)  and the p-value ($p =$ `r iris.t.test[[3]]`) is less than the $\alpha$ and is significant enough for us to reject the null hypothesis.

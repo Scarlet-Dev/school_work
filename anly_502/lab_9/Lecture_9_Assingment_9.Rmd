@@ -1,0 +1,120 @@
+---
+title: "Lecture_9_Assignment_9"
+author: "Akane Simpson"
+date: "9/24/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# download.file("http://www.openintro.org/stat/data/mlb11.RData", destfile = "mlb11.RData")
+
+load("mlb11.RData")
+```
+
+# Previous Models
+```{r}
+at_bats = lm(runs ~ at_bats, data = mlb11)
+homeruns = lm(runs ~ homeruns, data = mlb11)
+```
+
+
+# 1.Choose another traditional variable from mlb11 that you think might be a good predictor of runs. Produce a scatterplot of the two variables and fit a linear model. At a glance, does there seem to be a linear relationship?
+
+```{r}
+# From the traditional variables we select hits as our predictor.
+plot(x = mlb11$hits, y = mlb11$runs, xlab = "# of Hits", ylab = "# of Runs", main = "Plot of # of Runs over # of Hits")
+
+hits = lm(runs ~ hits, data = mlb11)
+abline(hits)
+
+# From the graph there is evidence available that batting average and runs have a moderate and positive relationship.
+```
+
+
+# 2.How does this relationship compare to the relationship between runs and at_bats? Use the R2 values from the two model summaries to compare. Does your variable seem to predict runs better than at_bats? How can you tell?
+```{r}
+at_bats.r2 <- summary(at_bats)$r.squared
+hits.r2 <- summary(hits)$r.squared
+```
+
+
+```{r, echo=FALSE}
+sprintf('The hits models r-squared of %.4f is greater than the at_bats model of only %.4f. The hits is better at predictions of runs than the at_bats model.',hits.r2, at_bats.r2)
+```
+
+
+#3.Now that you can summarize the linear relationship between two variables, investigate the relationships between runs and each of the other five traditional variables. Which variable best predicts runs? Support your conclusion using the graphical and numerical methods we've discussed (for the sake of conciseness, only include output for the best variable, not all five).
+```{r}
+pairs(mlb11[,c(2,4,6:9)])
+
+trads_cor <- cor(mlb11[,c(2,4,6:9)])
+trads_cor[,1]
+```
+```{r}
+# From the pairs visualization we can see that bat_avg has the best correlation to runs in the data set using the traditional values.
+
+plot(x = mlb11$bat_avg, y = mlb11$runs, xlab = "Batting Average", ylab = "$ of Runs", main = "# of Runs over Batting Average")
+
+bat_avg = lm(runs ~ bat_avg, data = mlb11)
+abline(bat_avg)
+```
+
+```{r}
+bat_avg.r2 <- summary(bat_avg)$r.squared
+paste('Predictor bat_avg r-squared: ', round(bat_avg.r2, 4))
+```
+
+#4.Now examine the three newer variables. These are the statistics used by the author of Moneyball to predict a teams success. In general, are they more or less effective at predicting runs that the old variables? Explain using appropriate graphical and numerical evidence. Of all ten variables we've analyzed, which seems to be the best predictor of runs? Using the limited (or not so limited) information you know about these baseball statistics, does your result make sense?
+
+```{r new_onbase model}
+plot(x = mlb11$new_onbase, y = mlb11$runs, xlab = "Runs to Base", ylab = "# of Runs", main = "Plot of Runs over Runs on Base")
+new_onbase <- lm(runs ~ new_onbase, data = mlb11)
+abline(new_onbase)
+```
+
+```{r new_onbase, echo=FALSE}
+paste('Predictor new_onbase r-squared: ', round(summary(new_onbase)$r.squared, 4))
+```
+
+
+```{r new_slug model}
+plot(x = mlb11$new_slug, y = mlb11$runs, xlab = "Slugging %", ylab = "# of Runs", main = "Plot of # of Runs \n over Slugging %")
+new_slug <- lm(runs ~ new_slug, data = mlb11)
+abline(new_slug)
+```
+
+```{r new_slug r2,echo=FALSE}
+paste('Predictor new_slug r-squared: ', round(summary(new_slug)$r.squared),4)
+```
+
+
+```{r new_obs model}
+plot(x = mlb11$new_obs, y = mlb11$runs, xlab = "Runs to Base + Slugs", ylab = "# of Runs", main = "Plot of # of Runs over Runs on \n Base + Slugs %")
+new_obs <- lm(runs ~ new_obs, data = mlb11)
+abline(new_obs)
+```
+
+```{r new_obs r2, echo=FALSE}
+paste('Predictor new_obs r-squared: ', round(summary(new_obs)$r.squared),4)
+```
+
+
+#5.Check the model diagnostics for the regression model with the variable you decided was the best predictor for runs.
+```{r}
+# From the previous question we can see that new_obs had the better r-squared value so we'll use this model and run a diagnostics on it.
+
+{plot(new_obs$residuals ~ mlb11$new_obs, xlab = "Residuals", ylab = "Runs on Base + Slug %", main = "Plot of Residuals against Runs on Base + Slug %")
+  abline(h = 0, lty = 3)}
+
+# Linearity
+hist(new_obs$residuals, xlab = "Residuals", ylab = "Frequency", main = "Histogram of Runs \n on Base + Slug %")
+
+# Constant Variability
+{plot(new_obs$residuals ~ mlb11$new_obs, xlab = "Runs on Base + Slug %", ylab = "Residuals", main = "Variability Plot of Residuals against \n Runs on Base + Slug %")
+  abline(h = 0, lty = 3)
+  abline(h = 40, lty = 2)
+  abline(h = -40, lty = 2)}
+# The variability of the residuals is between -40:40 where a majority of the values fall within this range.
+```
+

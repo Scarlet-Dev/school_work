@@ -1,0 +1,342 @@
+---
+title: 'Sentiment Analysis'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load the libraries + functions
+
+
+- Load all the libraries or functions that you will use to for the rest of the assignment. It is helpful to define your libraries and functions at the top of a report, so that others can know what they need for the report to compile correctly. 
+- Import the separate python file that includes the functions you will need for the classification reports. 
+
+```{r libaries}
+##r chunk
+library(reticulate)
+library(dplyr)
+```
+
+- Load the Python libraries or functions that you will use for that section. 
+
+```{python, warning=FALSE}
+##python chunk
+import pandas as pd
+import numpy as np
+import nltk
+import textblob
+import re
+from bs4 import BeautifulSoup
+import unicodedata
+import contractions
+#if you want to stem
+from nltk import PorterStemmer
+ps = PorterStemmer()
+ 
+# for the lexicons
+import textblob
+from afinn import Afinn
+#load the model 
+afn = Afinn(emoticons=True)
+ 
+# for test performance
+import sklearn
+from sklearn.metrics import classification_report
+from sklearn.linear_model import LogisticRegression
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+ 
+# for exploring
+import gensim
+import pyLDAvis
+import pyLDAvis.gensim_models #don't skip this 
+import matplotlib.pyplot as plt
+```
+
+## The Data
+
+- This dataset includes tweets that have been coded as either negative or positive. 
+- Import the data using either R or Python. I put a Python chunk here because you will need one to import the data, but if you want to first import into R, that's fine. 
+
+```{python, warning=FALSE}
+##python chunk
+DF = pd.read_csv("twitter_small.csv")
+DF.head()
+
+DF.sentiment.value_counts()
+
+STOPWORDS = set(nltk.corpus.stopwords.words('english')) #stopwords
+STOPWORDS.remove('no')
+STOPWORDS.remove('but')
+STOPWORDS.remove('not')
+
+def clean_text(text):
+    text = BeautifulSoup(text).get_text() #html
+    text = text.lower() #lower case
+    text = contractions.fix(text) #contractions
+    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8', 'ignore') #symbols
+    #text = ' '.join([ps.stem(word) for word in text.split()]) #stem
+    text = ' '.join(word for word in text.split() if word not in STOPWORDS) # stopwords
+    return text
+
+def clean_text_stem(text):
+    text = BeautifulSoup(text).get_text() #html
+    text = text.lower() #lower case
+    text = contractions.fix(text) #contractions
+    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8', 'ignore') #symbols
+    text = ' '.join([ps.stem(word) for word in text.split()]) #stem
+    text = ' '.join(word for word in text.split() if word not in STOPWORDS) # stopwords
+    return text
+
+```
+
+## Clean up the data (text normalization)
+
+- Use our clean text function from this lecture to clean the text for this analysis. 
+
+```{python, warning=FALSE}
+##python chunk
+DF['clean'] = DF['tweet'].apply(clean_text)
+DF['clean_stem'] = DF['tweet'].apply(clean_text_stem)
+```
+
+## TextBlob
+
+- Calculate the expected polarity for all the tweets.
+- Using a cut off score of 0, change the polarity numbers to positive and negative categories.
+- Display the performance metrics of using Textblob on this dataset. 
+
+```{python}
+##python chunk
+DF['textblob_clean'] = [textblob.TextBlob(tweet).sentiment.polarity for tweet in DF['clean']]
+DF['textblob_clean_stem'] = [textblob.TextBlob(tweet).sentiment.polarity for tweet in DF['clean_stem']]
+ 
+# dichotomize
+DF['textblob_clean_label'] = ['positive' if score >= 0.0 else 'negative' for score in DF['textblob_clean']]
+DF['textblob_clean_stem_label'] = ['positive' if score >= 0.0 else 'negative' for score in DF['textblob_clean_stem']]
+DF['textblob_clean_label'].value_counts()
+DF['textblob_clean_stem_label'].value_counts()
+```
+
+
+```{python}
+# test accuracy
+print('(TextBlob) Clean Label\n', classification_report(y_true = DF['sentiment'], y_pred = DF['textblob_clean_label']))
+print('(TextBlob) Clean Stem Label\n', classification_report(y_true = DF['sentiment'], y_pred = DF['textblob_clean_stem_label']))
+```
+
+
+```{r}
+cor(py$DF$textblob_clean, py$DF$textblob_clean_stem)
+plot(py$DF$textblob_clean, py$DF$textblob_clean_stem)
+
+mean(py$DF$textblob_clean)
+mean(py$DF$textblob_clean_stem)
+```
+
+
+## AFINN
+
+- Calculate the expected polarity for all the tweets using AFINN.
+- Using a cut off score of 0, change the polarity numbers to positive and negative categories.
+- Display the performance metrics of using AFINN on this dataset. 
+
+```{python}
+##python chunk
+DF['afinn_clean'] = [afn.score(tweet) for tweet in DF['clean']]
+DF['afinn_clean_stem'] = [afn.score(tweet) for tweet in DF['clean_stem']]
+ 
+# dichotomize
+DF['afinn_clean_label'] = ['positive' if score >= 0.0 else 'negative' for score in DF['afinn_clean']]
+DF['afinn_clean_stem_label'] = ['positive' if score >= 0.0 else 'negative' for score in DF['afinn_clean_stem']]
+DF['afinn_clean_label'].value_counts()
+DF['afinn_clean_stem_label'].value_counts()
+```
+
+
+```{python}
+# test accuracy
+print('(AFINN) Clean Label\n', classification_report(y_true = DF['sentiment'], y_pred = DF['afinn_clean_label']))
+print('(AFINN) Clean Stem Label\n', classification_report(y_true = DF['sentiment'], y_pred = DF['afinn_clean_stem_label']))
+```
+
+
+```{r}
+DF <- py$DF
+ 
+cor(DF %>% select(textblob_clean:textblob_clean_stem, afinn_clean:afinn_clean_stem))
+ 
+{plot(DF$textblob_clean, DF$afinn_clean)
+abline(v = 0)
+abline(h = 0)}
+
+DF_begin <- DF[1:100, ]
+DF_end <- DF[3900:4000, ]
+ 
+mean(DF_begin$textblob_clean)
+mean(DF_end$textblob_clean)
+```
+
+## Split the dataset
+
+- Split the dataset into training and testing datasets. 
+
+```{python, warning=FALSE}
+##python chunk
+# remember supervised classification = no good with punctuation
+DF['clean'] = DF['clean'].str.replace('[^a-zA-Z0-9\s]|\[|\]', ' ')
+DF['clean_stem'] = DF['clean_stem'].str.replace('[^a-zA-Z0-9\s]|\[|\]', ' ')
+ 
+train_tweets, testing_tweets, train_labels, testing_labels = sklearn.model_selection.train_test_split(DF['clean'], DF['sentiment'], random_state = 4893, test_size = .10)
+ 
+train_tweets.shape
+testing_tweets.shape
+ 
+train_tweets_stem, testing_tweets_stem, train_labels_stem, testing_labels_stem = sklearn.model_selection.train_test_split(DF['clean_stem'], DF['sentiment'], random_state = 4893, test_size = .10)
+ 
+train_tweets_stem.shape
+testing_tweets_stem.shape
+```
+
+## TF-IDF
+
+- Calculate features for testing and training using the TF-IDF vectorizer.
+
+```{python, warning=FALSE}
+##python chunk
+tv = TfidfVectorizer(use_idf=True, 
+                    min_df=0.0, max_df=1.0, 
+                    ngram_range=(1,2), #increases the number predictors
+                    sublinear_tf=True)
+tv_train_features = tv.fit_transform(train_tweets)
+tv_test_features = tv.transform(testing_tweets)
+ 
+tv_train_features.shape
+tv_test_features.shape
+ 
+tv_stem = TfidfVectorizer(use_idf=True, 
+                    min_df=0.0, max_df=1.0, 
+                    ngram_range=(1,2), #increases the number predictors
+                    sublinear_tf=True)
+tv_train_features_stem = tv_stem.fit_transform(train_tweets_stem)
+tv_test_features_stem = tv_stem.transform(testing_tweets_stem)
+ 
+tv_train_features_stem.shape
+tv_test_features_stem.shape
+```
+
+## Logistic Regression Classifier
+
+- Create a blank logistic regression model.
+- Fit the the model to the training data.
+- Create the predicted value for the testing data.
+
+```{python}
+##python chunk
+lr = LogisticRegression(penalty='l2', max_iter=1000, C=1)
+lr_tv_model = lr.fit(tv_train_features, train_labels)
+lr_tv_predict = lr_tv_model.predict(tv_test_features)
+ 
+lr_stem = LogisticRegression(penalty='l2', max_iter=1000, C=1)
+lr_tv_model_stem = lr_stem.fit(tv_train_features_stem, train_labels_stem)
+lr_tv_predict_stem = lr_tv_model_stem.predict(tv_test_features_stem)
+```
+
+## Accuracy and Classification Report
+
+- Display the performance metrics of the logistic regression model on the testing data.
+
+```{python}
+##python chunk
+#model performance
+print('(TD-IDF) Clean Label\n', classification_report(y_true=testing_labels, 
+                      y_pred=lr_tv_predict))
+                      
+print('(TD-IDF) Clean Stem Label\n', classification_report(y_true=testing_labels_stem, 
+                      y_pred=lr_tv_predict_stem))
+```
+
+## Topic Model Positive Reviews
+
+- Create a dataset of just the positive reviews. 
+- Create a dictionary and document term matrix to start the topics model.
+
+```{python, warning=FALSE}
+##python chunk
+# so let's model the entire dataset of positive reviews
+# select the positive reviews only 
+DF_pos = DF[DF['sentiment'] == "positive"]
+ 
+# predict the whole positive datasets
+tv_pos_features = tv.transform(DF['clean'])
+tv_pos_features.shape
+lr_tv_predict_probs = lr_tv_model.predict_proba(tv_pos_features)
+
+# get predictions 
+lr_predictions = pd.DataFrame(lr_tv_predict_probs, columns = ["negative_prob", "positive_prob"])
+ 
+# add to our DF
+DF_pos["positive_prob"] = lr_predictions["positive_prob"]
+ 
+# pick our favorites
+DF_pos_small = DF_pos[DF_pos["positive_prob"] >= .70]
+DF_pos_small.shape
+
+```
+
+## Topic Model
+
+- Create the LDA Topic Model for the positive reviews with three topics.
+
+```{python}
+##python chunk
+# got to tokenize
+positive_tweets =DF_pos_small['clean'].apply(nltk.word_tokenize)
+ 
+#create a dictionary of the words
+from gensim import corpora
+dictionary_positive = gensim.corpora.Dictionary(positive_tweets)
+ 
+#create a doc term matrix
+pos_doc_term_matrix = [dictionary_positive.doc2bow(doc) for doc in positive_tweets]
+ 
+# build the model
+lda_model_pos = gensim.models.ldamodel.LdaModel(
+  corpus = pos_doc_term_matrix, #TDM
+  id2word = dictionary_positive, #Dictionary
+  num_topics = 3, 
+  random_state = 904,
+  update_every = 1,
+  chunksize = 100,
+  passes = 10,
+  alpha = 'auto',
+  per_word_topics = True)
+```
+
+## Terms for the Topics
+
+- Print out the top terms for each of the topics. 
+
+```{python}
+##python chunk
+print(lda_model_pos.print_topics())
+```
+
+```{python}
+# vis = pyLDAvis.gensim_models.prepare(lda_model_pos, pos_doc_term_matrix, dictionary_positive, n_jobs = 1)
+# pyLDAvis.save_html(vis, 'LDA_Visualization_Positive.html') ##saves the file
+```
+
+
+## Interpretation
+
+- Which model best represented the polarity in the dataset? 
+
+Supervised models that has its training and test data cleaned (lowercase, stripped of stop words, punctuation and contractions) perform well with measuring polarity.
+
+- Looking at the topics analysis, what are main positive components to the data? 
+
+From the topic analysis we can examine the weights of each word and identify topics with noticeable weights. The main positive topic components are "good", "morning", "night", "great", "love" and "thanks".

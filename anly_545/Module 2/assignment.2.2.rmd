@@ -1,0 +1,121 @@
+---
+title: "Module 2 - Working with Categorical Data 2"
+author: "Akane Simpson"
+date: '2022-04-02'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+setwd("~/hu_lectures/anly_545/Lecture 2/")
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(kableExtra)
+library(reshape2)
+
+options(knitr.table.format = "html")
+```
+
+## Analysis (Opinion)
+
+In the 2nd and 3rd tables:
+
+1. The restaurants are displayed in the order they are because <u>the are arranged by the largest value in the overall column</u>.
+2. The addition of the overall column to the table allows the reader to see <u>the overall column shows us the total share of participants tend to eat at a specific restaurant</u>.
+3. The position of the overall column is important because <u>it will give us a better idea which restaurant has a larger customer base from a glance.</u>.
+4. The groupings of the sex and race columns are important because <u>it helps separate the overall value into a more detailed breakdown of sample representation with race being used to show which races or sexes tend to eat more at a specific restaurant</u>.
+
+
+```{r Basic Data Wrangling, include=FALSE}
+base <- read.csv('./data.2.csv')
+
+summary(base)
+str(base)
+
+
+cleaned <- base[,-6]
+cleaned$race <- factor(cleaned$race)
+cleaned$restaurant <- factor(cleaned$restaurant)
+cleaned$sex <- factor(cleaned$sex)
+
+total_cases <- nrow(cleaned)
+rest_sex_table <- table(cleaned$sex)
+total_male <-  as.data.frame(rest_sex_table)[2,2]
+total_female <- as.data.frame(rest_sex_table)[1,2]
+
+restrnt.names <- levels(cleaned$restaurant)
+restrnt.sex <- levels(cleaned$sex)
+restrnt.race <- levels(cleaned$race)
+```
+
+## Table and Figures
+Find the total number of cases: <u>`r total_cases`</u>
+
+For each restaurant, find the total number of customers.
+
+```{r Restaurant Count, include=FALSE}
+
+restrnt.count <- cleaned %>% 
+  group_by(restaurant) %>% 
+  tally()
+
+restrnt.count <- restrnt.count$n
+restrnt.percnt <-  round((restrnt.count/total_cases)*100, 2)
+
+rest.freq <- data.frame(restaurant = restrnt.names,
+              count = restrnt.count,
+              percentage = restrnt.percnt)
+
+rest.freq <- rest.freq %>% 
+  arrange(., desc(count))
+
+table <- kbl(rest.freq, caption = "Restaurant Customers", col.names = c("Restaurant", "Count", "Percentage")) %>% 
+  kable_styling()
+```
+
+`r table`
+
+For each restaurant, find the average star rating by __Sex__.
+
+```{r Average Rating by Sex, include=FALSE}
+restrnt.ratings <- cleaned %>% 
+  group_by(restaurant, sex) %>% 
+  summarise(avg = round(mean(stars), 2)) 
+
+restrnt.overall <- restrnt.ratings %>% 
+  summarise(overall = round(sum(avg)/length(restrnt.sex), 2)) 
+
+restrnt.ratings <- dcast(restrnt.ratings, restaurant ~ sex, value.var = "avg")
+
+restrnt.freq <- inner_join(restrnt.overall, restrnt.ratings, by = "restaurant") %>% 
+  arrange(., desc(overall))
+
+table <- kbl(restrnt.freq, caption = "Average Customer Rating by Sex", 
+                      col.names = c("Restaurant", "Overall", restrnt.sex)) %>% 
+  add_header_above(c(" " = 2, "Sex" = length(restrnt.sex))) %>% 
+  kable_styling()
+```
+
+`r table`
+
+For each restaurant, find the average star rating by __Race__.
+
+```{r Average Rating by Race, include=FALSE}
+restrnt.ratings <- cleaned %>% 
+  group_by(restaurant, race) %>% 
+  summarise(avg = round(mean(stars), 2)) 
+
+restrnt.overall <- restrnt.ratings %>% 
+  summarise(overall = round(sum(avg)/length(restrnt.race), 2))
+
+restrnt.ratings <- dcast(restrnt.ratings, restaurant ~ race, value.var = "avg")
+
+restrnt.freq <- inner_join(restrnt.overall, restrnt.ratings, by = "restaurant") %>% 
+  arrange(., desc(overall))
+
+table <- kbl(restrnt.freq, caption = "Average Customer Rating by Sex", 
+                      col.names = c("Restaurant", "Overall", restrnt.race)) %>% 
+  add_header_above(c(" " = 2, "Race" = length(restrnt.race))) %>% 
+  kable_styling()
+```
+
+`r table`

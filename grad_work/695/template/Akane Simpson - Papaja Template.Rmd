@@ -1,0 +1,114 @@
+---
+title             : "Internet Culture – Incel Language Detection within in-groups on the internet"
+shorttitle        : "Incel Language Detection"
+
+author: 
+  - name          : "Akane Simpson"
+    affiliation   : "1"
+    corresponding : yes    # Define only one corresponding author
+    address       : "326 Market St, Harrisburg, PA 17101"
+    email         : "asimpson@my.harrisburgu.edu"
+    role:         # Contributorship roles (e.g., CRediT, https://casrai.org/credit/)
+      - "Conceptualization"
+      - "Writing - Original Draft Preparation"
+      - "Writing - Review & Editing"
+
+affiliation:
+  - id            : "1"
+    institution   : "Harrisburg University of Science & Technology"
+
+authornote: |
+  Add complete departmental affiliations for each author here. Each new line herein must be indented, like this line.
+
+  Enter author note here.
+
+abstract: |
+  One or two sentences providing a **basic introduction** to the field,  comprehensible to a scientist in any discipline.
+  
+  Two to three sentences of **more detailed background**, comprehensible  to scientists in related disciplines.
+  
+  One sentence clearly stating the **general problem** being addressed by  this particular study.
+  
+  One sentence summarizing the main result (with the words "**here we show**" or their equivalent).
+  
+  Two or three sentences explaining what the **main result** reveals in direct comparison to what was thought to be the case previously, or how the  main result adds to previous knowledge.
+  
+  One or two sentences to put the results into a more **general context**.
+  
+  Two or three sentences to provide a **broader perspective**, readily comprehensible to a scientist in any discipline.
+  
+  <!-- https://tinyurl.com/ybremelq -->
+  
+keywords          : "keywords"
+wordcount         : "X"
+
+bibliography      : "r-references.bib"
+
+floatsintext      : no
+linenumbers       : no
+draft             : no
+mask              : no
+
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+
+header-includes:
+  - |
+    \makeatletter
+    \renewcommand{\paragraph}{\@startsection{paragraph}{4}{\parindent}%
+      {0\baselineskip \@plus 0.2ex \@minus 0.2ex}%
+      {-1em}%
+      {\normalfont\normalsize\bfseries\typesectitle}}
+    
+    \renewcommand{\subparagraph}[1]{\@startsection{subparagraph}{5}{1em}%
+      {0\baselineskip \@plus 0.2ex \@minus 0.2ex}%
+      {-\z@\relax}%
+      {\normalfont\normalsize\bfseries\itshape\hspace{\parindent}{#1}\textit{\addperi}}{\relax}}
+    \makeatother
+
+csl               : "`r system.file('rmd', 'apa7.csl', package = 'papaja')`"
+documentclass     : "apa7"
+output            : papaja::apa6_pdf
+---
+
+```{r setup, include = FALSE}
+library("papaja")
+r_refs("r-references.bib")
+```
+
+```{r analysis-preferences}
+# Seed for random number generation
+set.seed(42)
+knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
+```
+
+This is the initial line for an introduction to the paper. In this paper I will seek to analyze and document an new discovery about our current society.
+
+# Literature Review
+This is the first line for a literature review.
+
+@helm2022examining opening line says, "The online presence of incels, or involuntary celibates, has been an increasing security concern for researchers, practitioners, and policymakers in recent years..." while @o2022exploration suports this claim "...several violent incidents have been linked to this community, which suggests that incel communities may resemble other ideologically motivated extremist groups".
+
+# Methods
+In this section I will talk about how I planned my study by calculating the required sample size, the data that I was able to find or generate, list and discuss how this relates to answering our hypothesis or whatever.
+
+## Participants
+This study should have no participants needed.
+
+## Procedure
+The study will use a step by step procedure to identify, measure and observe interactions by users on the internet.
+
+## Measures
+The measures that we identify are language and sentiment in these online posts.
+
+## Analysis
+We used `r cite_r("r-references.bib")` for all our analyses.
+In our analysis we will see if there is a established connection that helps prove or disprove our prior hypothesis.
+
+\newpage
+
+# References
+
+::: {#refs custom-style="Bibliography"}
+:::

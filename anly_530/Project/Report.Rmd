@@ -1,0 +1,137 @@
+---
+title             : "Predicting the Availability of Alternative Fueling Stations in Pennsylvania"
+shorttitle        : "Alternative Station Availability"
+author: 
+  - name          : "Akane Simpson"
+    affiliation   : "1"
+    corresponding : yes    # Define only one corresponding author
+    address       : "326 Market St, Harrisburg, PA 17101"
+    email         : "asimpson@my.harrisburgu.edu"
+    role:         # Contributorship roles (e.g., CRediT, https://casrai.org/credit/)
+      - "Conceptualization"
+      - "Writing - Original Draft Preparation"
+      - "Writing - Review & Editing"
+
+affiliation:
+  - id            : "1"
+    institution   : "Harrisburg University of Science & Technology"
+
+authornote: 
+  
+keywords          : "keywords"
+wordcount         : "X"
+
+floatsintext      : no
+linenumbers       : no
+draft             : no
+mask              : no
+
+figurelist        : no
+tablelist         : yes
+footnotelist      : no
+
+classoption       : "man"
+output            : papaja::apa6_pdf
+bibliography      : references.bib
+---
+
+```{r setup, include = FALSE}
+library("papaja")
+r_refs("references.bib")
+```
+
+```{r source files, include=FALSE}
+source("PreProcessing.R", local = knitr::knit_global())
+source("Algorithms_Evaluations.R", local = knitr::knit_global())
+# or sys.source("your-script.R", envir = knitr::knit_global())
+```
+
+```{r analysis-preferences}
+# Seed for random number generation
+set.seed(42)
+knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
+```
+
+# Introduction
+
+Electric vehicle production has rapidly increased throughout the years wit more affordable options available for consumers. However, planned development of fueling stations for electric vehicles does not correlate with electric vehicle production or sales. This is evident in Pennsylvania where most of our fuel come from natural gas. There will be a strong market shift in the vehicle market and demand for affordable alternative fuel sources must be met with an equal supply of stations to keep America moving.
+
+This study seeks to evaluate the best prediction model based on availability of alternative fuel stations based on ZIP Code and Median Salary of different number of Earners in the state of Pennsylvania. The hope for this possible model is to help companies and government make good decisions when expanding infrastructure.
+
+The data collected for this experiment has its difficulties and based on some dataset could have be their own research performed.
+
+# Related Work
+
+In @akanealternative2022 the researchers performed a exploratory analysis on aggregated data to determine the availability of alternative fueling station using New York as an example. What they discovered was the there was a a strongly positive relationship between median salary within areas of New York.
+
+# Data
+
+The first step of this project was data retrieval. Using sources provided found in @akanealternative2022 we followed the same methodology presented with some changes. Since the data from @akanealternative2022 was focused Zip Codes in New York we searched for data that was similar in format to @akanealternative2022 project and found the following.
+
+-   Alternative Fuel Stations - Contained statistics for the types of AFS were located, their fuel type, electric vehicle network, public access and more
+
+-   Median Salary Data from US Census - Contained median salary in PA distributed across all its ZIP Codes. Columns of interests were related to earner status
+
+-   Vehicle registrations in PA by ZIP Code - Contained an interactive map of PA that showed the number of Electric Vehicles registered in each ZIP.
+
+-   Zip Code County cross reference in PA was a list of ZIP codes in PA.
+
+# Technical Approach
+
+After procuring the datasets we began with data cleaning using @tidyverse and @stringr. We use the pipe functions and several transformation functions to change the shape, rename, mutate, combine and group tables together. For the issues with extracting string data we used @stringr and other native R functions to search, replace and convert observation into appropriate data type.
+
+After cleaning the data we aggregated the columns from the median salary for earners census data, the AFS for PA and joined them using the shared Zip code. We also created new columns for the Average Median salary for earners in each zip code observations. This dataset was then further cleaned by removing missing values and outliers, and normalization using 'center' and 'scale' [@mice; @caret; @outlieR; @corrplot]. After processing the dataset we proceeded to sample from the data using a 80/20 split. A new 80/20 split was applied to each training and validation sets before they were exported for the model building and evaluation section.
+
+# Test and Evaluation
+
+A model building and evaluation function was created that accepted the training and validation datasets using @caret and @MLeval. This function takes the training set and validation set and generates three models. The models were all classification models, and trained using:
+
+-   Decision Trees,
+
+-   Random Forest
+
+-   and Support Vector Machine
+
+The function was run a total of nine times and stored within three algorithm results set. Each algorithm is based on the training set given to:
+
+-   Set 1 only used Normalization
+
+-   Set 2 used Normalization and Feature Selection with Correlation
+
+-   Set 3 used Normalization and Feature Engineering using PCA
+
+The function also performed evaluations by using the @MLeval eval function to generate charts that showed the Accuracy and Kappa values for the models.
+
+The models were evaluated using the Accuracy metric to measure how well the model predicted the availability of AFS in a particular Zip Code. Using algorithm set 1 as our base line we tabulated the other model metrics as seen in Table 1.
+
+From the results we see that from all algorithms, #3 was favored. The model with the best overall statistics was the Random Forest model.
+
+\newpage
+
+# References
+
+::: {#refs custom-style="Bibliography"}
+:::
+
+\newpage
+
+```{r algo-1, echo=FALSE}
+results_1 %>% 
+  select(Accuracy, Kappa, Precision, Recall) %>% 
+  round(2) %>% 
+  knitr::kable(caption = "Table summary of Algorithm #1 Model Evaluations") 
+```
+
+```{r algo-2, echo=FALSE}
+results_2 %>% 
+  select(Accuracy, Kappa, Precision, Recall) %>% 
+  round(2) %>% 
+  knitr::kable(caption = "Table summary of Algorithm #2 Model Evaluations")
+```
+
+```{r algo-3, echo=FALSE}
+results_3 %>% 
+  select(Accuracy, Kappa, Precision, Recall) %>% 
+  round(2) %>% 
+  knitr::kable(caption = "Table summary of Algorithm #3 Model Evaluations")
+```

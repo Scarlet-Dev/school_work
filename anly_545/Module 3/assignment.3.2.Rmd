@@ -1,0 +1,68 @@
+---
+title: "Module 3 - Fitting Discrete Distributions 2"
+author: "Akane Simpson"
+date: '2022-04-20'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+
+library(kableExtra)
+library(vcd)
+```
+
+```{r}
+base <- read.csv('./data.3.csv')
+dice_groups <- ncol(base)
+colNames <- names(base)
+maxVals <- max(base, na.rm = TRUE)
+nobs <- nrow(base)
+```
+
+```{r}
+s123 <- rowSums(base == 1 | base == 2 | base == 3)
+fs123 <- factor(s123, levels = 0:dice_groups)
+freq.values <- xtabs(~fs123)
+```
+
+```{r}
+freq.matrix <- matrix(data = freq.values, nrow = 1, byrow = TRUE, dimnames = list(c("Frequency"), c(0:dice_groups)))
+table <- kable(freq.matrix, caption = "Number of successes when rolling a 8 sided dice in groups of 9. ") %>%
+  kable_styling()
+```
+
+```{r, include=FALSE}
+# Assuming p = 0.05 test if be fitted data from goodness-of-fit values shows the dice distribution is binomial
+
+# H_0: The dice distribution is binomial (fit == binomial)
+# H_A: The dice distribution is not binomial (fit != binomial)
+
+fit <- goodfit(freq.values, type = "binomial")
+fit.summa <- summary(fit)
+
+# Since 0.894 > p then we should not reject the null
+```
+
+## Analysis (Fact)
+
+Perform a goodness-of-fit test.
+
+1. The test’s __statistic__ has a value of $x^{2}$ = __`r format(fit.summa[1], digits = 3)`__.
+2. The test has a __p-value__ of __`r format(fit.summa[3], digits = 3)`__.
+3. The test provides __evidence__ that the distribution [is] ___a binomial distribution___ because ___the returned p-value is greater than the $x^{2}$ value. Hence we must not reject the null hypothesis___.
+
+## Tables and Figures
+
+Find the maximum dice size: __`r maxVals`__
+
+Find the group size: __`r dice_groups`__
+
+Considering a roll of 1/2/3 to be a success, find the number of successes per grouping.
+
+`r table`
+
+```{r, warning=FALSE}
+plot(x = fit, y = NULL, ylab = "Frequency", scale="raw", shade = T, main = "Number of successes when rolling a 8 sided dice.",   xlab = "Number of Successes")
+```
+

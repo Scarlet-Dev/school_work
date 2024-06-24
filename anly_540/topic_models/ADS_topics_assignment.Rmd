@@ -1,0 +1,283 @@
+---
+title: 'Topics Models'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+For this assignment, you will use the similar data as the Factor Analysis assignment to discover the topics in movie reviews. However, instead of a csv file with word frequencies, the data set for this assignment has only the raw text which you will need to process as shown in class. 
+
+## Load the libraries + functions
+
+Load all the libraries or functions that you will use to for the rest of the assignment. It is helpful to define your libraries and functions at the top of a report, so that others can know what they need for the report to compile correctly.
+
+Load the Python libraries or functions that you will use for that section. 
+
+```{r}
+##r chunk
+library(tm)
+library(topicmodels)
+library(tidyverse)
+library(tidytext)
+library(slam)
+
+cleanFun <- function(x){
+    return (gsub("<.*?>", "", x))
+}
+```
+
+```{python}
+##python chunk
+import string
+import pyLDAvis
+
+import pyLDAvis.gensim_models  # don't skip this
+import matplotlib.pyplot as plt
+
+import gensim
+import gensim.corpora as corpora
+
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer 
+ps = PorterStemmer()
+```
+
+## The Data
+
+```{r data}
+##r chunk
+df <- read.csv('IMdB Reviews.csv', encoding = 'UTF-8')
+df$text <- sapply(df$text, FUN = cleanFun)
+```
+
+## Create the Topics Model
+
+Create the corpus for the model in R. 
+
+```{r}
+##r chunk
+import_corpus <- Corpus(VectorSource(df$text))
+
+```
+
+Clean up the text and create the Document Term Matrix. 
+
+```{r}
+##r chunk 
+import_mat <- DocumentTermMatrix(import_corpus,
+                            control = list(stemming = FALSE,
+                                           stopwords = TRUE,
+                                           minWordLength = 3,
+                                           removeNumbers = TRUE,
+                                           removePunctuation = TRUE))
+```
+
+Weight the matrix to remove all the high and low frequency words. 
+
+```{r}
+##r chunk
+import_weight = tapply(import_mat$v/row_sums(import_mat)[import_mat$i], 
+                       import_mat$j, mean) * log2(nDocs(import_mat)/col_sums(import_mat > 0))
+
+#ignore very frequent and 0 terms
+import_mat = import_mat[ , import_weight <= 0.95]
+import_mat = import_mat[ row_sums(import_mat) > 0, ]
+```
+
+Run and LDA Fit model (only!).
+
+```{r}
+##r chunk
+k = 10 #set the number of topics
+
+SEED = 7 #set a random number 
+
+LDA_fit = LDA(import_mat, k = k, 
+              control = list(seed = SEED))
+```
+
+Create a plot of the top ten terms for each topic.
+
+```{r}
+##r chunk
+LDA_fit_topics10 = tidy(LDA_fit, matrix = "beta")
+
+top_terms10 = LDA_fit_topics10 %>%
+   group_by(topic) %>%
+   top_n(10, beta) %>%
+   ungroup() %>%
+   arrange(topic, -beta)
+
+cleanup = theme(panel.grid.major = element_blank(), 
+                panel.grid.minor = element_blank(), 
+                panel.background = element_blank(), 
+                axis.line.x = element_line(color = "black"),
+                axis.line.y = element_line(color = "black"),
+                legend.key = element_rect(fill = "white"),
+                text = element_text(size = 12))
+
+top_terms10 %>%
+  mutate(term = reorder(term, beta)) %>%
+  ggplot(aes(term, beta, fill = factor(topic))) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  cleanup +
+  coord_flip()
+```
+
+Use dplyr to compare the use of the topics in positive versus negative sentiment reviews.
+
+```{r}
+##r chunk
+LDA_gamma <- as.data.frame(tidy(LDA_fit, matrix  = 'gamma'))
+LDA_gamma <- reshape(LDA_gamma, idvar = 'document', timevar = 'topic', direction = 'wide')
+
+df$document <- row.names(df)
+LDA_topics <- merge(df, LDA_gamma, by = 'document')
+LDA_topics$sentiment <- factor(LDA_topics$sentiment)
+
+t10 = LDA_topics %>%
+      group_by(sentiment) %>%
+      summarize(M_Topic1 = mean(gamma.1),
+      M_Topic2 = mean(gamma.2),
+      M_Topic3 = mean(gamma.3),
+      M_Topic4 = mean(gamma.4),
+      M_Topic5 = mean(gamma.5),
+      M_Topic6 = mean(gamma.6),
+      M_Topic7 = mean(gamma.7),
+      M_Topic8 = mean(gamma.8),
+      M_Topic9 = mean(gamma.9),
+      M_Topic10 = mean(gamma.10))
+t10
+```
+```{r}
+wilcox.test(LDA_topics$gamma.1 ~ LDA_topics$sentiment)
+```
+
+
+```{r}
+wilcox.test(LDA_topics$gamma.2 ~ LDA_topics$sentiment)
+```
+
+
+```{r}
+wilcox.test(LDA_topics$gamma.3 ~ LDA_topics$sentiment)
+```
+
+
+```{r}
+wilcox.test(LDA_topics$gamma.4 ~ LDA_topics$sentiment)
+```
+
+
+```{r}
+wilcox.test(LDA_topics$gamma.5 ~ LDA_topics$sentiment)
+```
+
+
+```{r}
+wilcox.test(LDA_topics$gamma.6 ~ LDA_topics$sentiment)
+```
+
+
+```{r}
+wilcox.test(LDA_topics$gamma.7 ~ LDA_topics$sentiment)
+```
+
+
+```{r}
+wilcox.test(LDA_topics$gamma.8 ~ LDA_topics$sentiment)
+```
+
+
+```{r}
+wilcox.test(LDA_topics$gamma.9 ~ LDA_topics$sentiment)
+```
+
+
+```{r}
+wilcox.test(LDA_topics$gamma.10 ~ LDA_topics$sentiment)
+```
+
+
+## Gensim Modeling in Python
+
+Transfer the df['Text'] to Python and convert it to a list for processing. 
+
+```{python}
+##python chunk
+texts = list(r.df["text"])
+```
+
+Process the text using Python. 
+
+```{python}
+##python chunk
+##create a spot to save the processed text
+processed_text = []
+
+##loop through each item in the list
+for text in texts:
+  #lower case
+  text = text.lower()
+  #remove punctuation
+  text = text.translate(str.maketrans('', '', string.punctuation))
+  #create tokens
+  text = nltk.word_tokenize(text) 
+  #take out stop words
+  text = [word for word in text if word not in stopwords.words('english')] 
+  #stem the words
+  #text = [ps.stem(word = word) for word in text]
+  #add it to our list
+  processed_text.append(text)
+```
+
+Create the dictionary and term document matrix in Python.
+
+```{python}
+##python chunk
+dictionary = corpora.Dictionary(processed_text)
+
+#create a TDM
+doc_term_matrix = [dictionary.doc2bow(doc) for doc in processed_text]
+```
+
+Create the LDA Topics model in Python using the same number of topics as used in the Factor Analysis assignment. 
+
+```{python}
+##python chunk
+lda_model = gensim.models.ldamodel.LdaModel(corpus = doc_term_matrix, #TDM
+                                           id2word = dictionary, #Dictionary
+                                           num_topics = 10, 
+                                           random_state = 100,
+                                           update_every = 1,
+                                           chunksize = 100,
+                                           passes = 10,
+                                           alpha = 'auto',
+                                           per_word_topics = True)
+```
+
+Create the interactive graphics `html` file. Please note that this file saves in the same folder as your markdown document, and you should upload the knitted file and the LDA visualization html file. 
+
+```{python}
+##python chunk
+vis = pyLDAvis.gensim_models.prepare(lda_model, doc_term_matrix, dictionary, n_jobs = 1)
+pyLDAvis.save_html(vis, 'LDA_Visualization.html') ##saves the file
+```
+
+## Interpretation
+
+Interpret your topics and compare to MEM themes with PCA. Explain the results from your analysis (at least 5 sentences). 
+  
+- ANSWER: From the top ten word analysis we see most words such as movie, film and like appear often in each topic. It can be said that the top ten words ten to be general words that may be commonly used when reviewing a film or TV series. What should be of note is the amount of times each of these words vary between topics. This could be dependent on the theme of each topic. In the mean gamma table we see that most topics were similarly likelihood of occurring between positive and negative sentiments. This is also supported by the Wilcox test for most topics (except Topic 9). Topic 1 and 2 have an overlapping terms while Topic 3 would have a Crime/Action theme. Topic 4 has a War theme while Topic 5 is a Cartoon TV Show. Topic 6 is a is Action/Horror oriented while Topic 7 is more aligned with Dance/Musicals. Finally, the themes for Topics 8, 9 and 10 are in order Monster, Unknown and Sci-Fi. When comparing the topic theme from this analysis with those from the factor analysis assignment the themes do not match. This could be attributed to the words the themes were inference from. Additionally, the PCA factors used may not have been adequate in finding and assigning meanings to these topics.
+
+## Discussion Question
+
+Thinking of your current job or prospective career, propose a research project to address a problem or question in your industry that would use topic models. Spend time thinking about this and write roughly a paragraph describing the problem/question and how you would address it with text data and topic modeling.
+
+- ANSWER: One set of texts that could benefit from topic modelling is trend predictions on social media. The research question one could pose is whether changes in online discourse could be tracked automatically based on topics presented in comments and posts. TO do this we could extract the comments made on a site and create a data stream. From there we ingest the comments (cleaning) and perform or topic modelling from there. We should expect to see a common theme starting to emerge whenever there is a sharp increase in traffic on that theme. This could be a useful way to track and increase user engagement and allow the company to examine how trends pickup traction and become viral.

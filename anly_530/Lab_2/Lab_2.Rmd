@@ -1,0 +1,298 @@
+---
+title: "Lab_2"
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+credit <- read.csv('creditData.csv')
+letters <- read.csv('letterdata.csv')
+news <- read.csv('OnlineNewsPopularity_for_R.csv')
+```
+
+```{r}
+library(caret)
+require(naivebayes)
+library(kernlab)
+```
+
+
+## Method 1 - Naive Bayes 1
+
+```{r Credit Review}
+str(credit)
+summary(credit)
+
+table(credit$Creditability)
+sum(is.na(credit))
+```
+
+
+```{r}
+set.seed(13347)
+
+index <- createDataPartition(credit[,1], p = 0.90, list=FALSE)
+
+credit.train <- credit[index,]
+credit.test <- credit[-index,]
+
+sum(is.na(credit.train))
+sum(is.na(credit.test))
+```
+
+***Remember that the class variable needs to be a categorical data type in order to build a Naïve Bayes Classifier. This means that you’ll need to convert your class variable.***
+
+```{r Factor Creditability and Create Model, warning=FALSE}
+credit.train$Creditability <- factor(credit.train$Creditability)
+credit.test$Creditability <- factor(credit.test$Creditability)
+
+credit.nb1 <- naive_bayes(Creditability ~ ., credit.train)
+credit.nb1.predict <- predict(credit.nb1, credit.test)
+
+(conf_table <- table(credit.nb1.predict, credit.test$Creditability))
+
+(Accuracy_1_1 <- sum(diag(conf_table))/sum(conf_table) * 100)
+```
+
+**Next, use a 75%/25% split for training and test data, i.e. use 75% of the records for the training set and 25% of the records for the test set. Report the number of missing values you find in the data in your results report. Use the randomization seed of 12345.**
+```{r Q2 Resplit using 75/25, warning=FALSE}
+index_two <- createDataPartition(credit[,1], p = 0.75, list=FALSE)
+
+ctest2 <- credit[index_two,]
+ctrain2 <- credit[-index_two,]
+
+prop.table(table(ctrain2$Creditability))
+prop.table(table(ctest2$Creditability))
+
+sum(is.na(ctrain2))
+sum(is.na(ctest2))
+
+set.seed(12345)
+
+ctrain2$Creditability <- factor(ctrain2$Creditability)
+ctest2$Creditability <- factor(ctest2$Creditability)
+
+# 
+credit.nb2 <- naive_bayes(Creditability ~ ., ctrain2)
+credit.nb2.predict <- predict(credit.nb2, ctest2)
+
+# 
+(conf_table_1 <- table(credit.nb2.predict, ctest2$Creditability))
+(Accuracy_1_2 <- sum(diag(conf_table))/sum(conf_table) * 100)
+```
+
+
+**Compute the percentage of both classes similar to what you did in lab 1 and see if the distribution of both classes preserved for both training and testing data.**
+
+```{r CTS1}
+prop.table(table(credit.train$Creditability))
+```
+
+```{r CTR1}
+prop.table(table(credit.test$Creditability))
+```
+
+```{r CTS2}
+prop.table(table(ctrain2$Creditability))
+```
+
+```{r CTR2}
+prop.table(table(ctest2$Creditability))
+```
+
+"We can see the prop types for both initial Naive Bayes models have a uniform distribution and do not significantly diverge from each other."
+
+## Method 2 - Naive Bayes (Filtered)
+
+```{r Filtered Naive Bayes, warning=FALSE}
+set.seed(88912)
+
+# Create Random Data
+credit_rand <- credit[order(runif(1000)),]
+
+# Scale randomized data
+creditDataScaled <- scale( credit_rand[, 2:ncol(credit_rand)], 
+                           center = TRUE, scale = TRUE )
+
+# Find columns correlation
+credit.cor <- cor(creditDataScaled)
+# Extract columns placement with high correlation (Over 0.3)
+(highlyCor <- findCorrelation(credit.cor, 0.30))
+
+# Filter out columns with high cor
+filteredCredit <- credit_rand[, -(highlyCor[4]+1)]
+# Finally factor response variable
+filteredCredit$Creditability <- factor(filteredCredit$Creditability)
+
+# Create train/test sets (75/25 split)
+filteredTrain <- filteredCredit[1:750,]
+filteredTest <- filteredCredit[751:1000,]
+
+# Model Building and Prediction
+filteredCreditNB <- naive_bayes(Creditability ~ ., data = filteredTrain)
+filteredTestPredict <- predict(filteredCreditNB, newdata = filteredTest)
+
+# Evaluation
+(conf_table_2_1 <- table(filteredTestPredict, filteredTest$Creditability))
+(Accuracy_2_1 <- sum(diag(conf_table_2_1))/sum(conf_table_2_1) * 100)
+```
+
+**What is the accuracy this time? Be sure to include in your results report whether or not, after all this work, the performance of your Naïve Bayes Classifier was improved.**
+
+"After filtering out columns with low correlation to the response variable we can see that the accuracy for the second Naive Bayes classification model fell to 72.8%. By removing some of the columns that fell below a correlation rate of 0.3 we have less columns to help predict values."
+
+
+## Method 3 - SVM
+```{r Letter Data Review}
+str(letters)
+sum(is.na(letters$letter))
+```
+
+
+```{r Support Vector Machine}
+letters_train <- letters[1:18000,]
+letters_train$letter <- factor(letters_train$letter)
+
+letters_test <- letters[18001:20000,]
+letters_test$letter <- factor(letters_test$letter)
+
+# Model Building and Prediction
+letter_classifier_1 <- ksvm(letter ~ ., data = letters_train, kernel = "vanilladot")
+letter_classifier_1
+
+letters_prediction_1 <- predict(letter_classifier_1, letters_test)
+```
+
+
+```{r Support Vector Machine Eval}
+# Evaluation
+agreement_1 <- letters_prediction_1 == letters_test$letter
+table(agreement_1)
+
+(conf_table_3_1 <- table(letters_prediction_1, letters_test$letter))
+(Accuracy_3_1 <- sum(diag(conf_table_3_1))/sum(conf_table_3_1) * 100 )
+```
+
+**We may be able to do better than this by changing the Kernels. Try Polynomial and RBF kernels to improve the result.**
+```{r PolyDot Kernel}
+# Model Building
+letter_classifier_2 <- ksvm(letter ~ ., data = letters_train, kernel = "polydot")
+letter_classifier_2
+
+letters_prediction_2 <- predict(letter_classifier_2, letters_test)
+```
+
+
+```{r PolyDot Kernel Eval}
+# Evaluation
+agreement_2 <- letters_prediction_2 == letters_test$letter
+table(agreement_2)
+
+(conf_table_3_2 <- table(letters_prediction_2, letters_test$letter))
+(Accuracy_3_2 <- sum(diag(conf_table_3_2))/sum(conf_table_3_2) * 100 )
+```
+
+
+```{r RBF Kernel}
+# Model Building
+letter_classifier_3 <- ksvm(letter ~ ., data = letters_train, kernel = "rbfdot")
+letter_classifier_3
+
+letters_prediction_3 <- predict(letter_classifier_3, letters_test)
+```
+
+
+```{r RBF Kernal Eval}
+# Evaluation
+agreement_3 <- letters_prediction_2 == letters_test$letter
+table(agreement_3)
+
+(conf_table_3_3 <- table(letters_prediction_3, letters_test$letter))
+(Accuracy_3_3 <- sum(diag(conf_table_3_3))/sum(conf_table_3_3) * 100 )
+```
+
+"The initial SVM model using the 'vanilladot' kernel had a accuracy of 83.95%. After switching to the 'polydot' kernel we see a small increase in the accuracy to 84%. Finally, after switching to the 'rbfdot' kernel we see a major improvement to 93.35% accuracy."
+
+
+## Method 4 - Online News Popularity
+```{r}
+news_short <- data.frame(news$n_tokens_title, news$n_tokens_content, 
+                         news$n_unique_tokens, news$n_non_stop_words, news$num_hrefs, 
+                         news$num_imgs, news$num_videos, news$average_token_length, 
+                         news$num_keywords, news$kw_max_max, news$global_sentiment_polarity, 
+                         news$avg_positive_polarity, news$title_subjectivity, news$title_sentiment_polarity, 
+                         news$abs_title_subjectivity, news$abs_title_sentiment_polarity, news$shares)
+colnames(news_short) <- c("n_tokens_title", "n_tokens_content", "n_unique_tokens",
+                          "n_non_stop_words", "num_hrefs", "num_imgs", "num_videos",
+                          "average_token_length", "num_keywords", "kw_max_max",
+                          "global_sentiment_polarity", "avg_positive_polarity",
+                          "title_subjectivity", "title_sentiment_polarity", 
+                          "abs_title_subjectivity", "abs_title_sentiment_polarity", "shares")
+
+str(news_short)
+summary(news_short)
+
+
+news_short$shares <- as.factor(ifelse(news_short$shares > 1400, 'yes', 'no'))
+```
+
+```{r}
+news_rand <- news_short[order(runif(10000)),]
+
+news.train <- news_rand[1:9000,]
+news.test <- news_rand[9001:10000,]
+
+prop.table(table(news.train$shares))
+prop.table(table(news.test$shares))
+```
+
+
+```{r Building and Predicting Model on the Online News Popularity Data 1, warning=FALSE}
+# Naive Bayes 1
+news.nb1 <- naive_bayes(shares ~ ., data = news.train)
+news.nb1
+
+news.nb1.predict <- predict(news.nb1, news.test)
+
+(p1 <- table(news.nb1.predict, news.test$shares))
+(NewsAccuracy_1 <- sum(diag(p1))/sum(p1) * 100)
+```
+
+
+```{r Building and Predicting Model on the Online News Popularity Data 2, warning=FALSE}
+# Naive Bayes 2
+newsDataScaled <- scale(news_rand[, -17], center = TRUE, scale = TRUE)
+news.cor <- cor(newsDataScaled)
+(newsHighlyCor <- findCorrelation(news.cor, 0.3))
+
+filteredNews <- news_rand[, -(newsHighlyCor)+1]
+
+filteredNews.Train <- filteredNews[1:9000,]
+filteredNews.Test <- filteredNews[9000:10000,]
+
+news.nb2 <- naive_bayes(shares ~ ., data = filteredNews.Train)
+news.nb2
+
+news.nb2.predict <- predict(news.nb2, filteredNews.Test)
+
+(p2 <- table(news.nb2.predict, filteredNews.Test$shares))
+(NewsAccuracy_2 <- sum(diag(p2))/sum(p2) * 100)
+```
+
+
+```{r Building and Predicting Model on the Online News Popularity Data 3}
+# SVM
+news_classifier <- ksvm(shares ~ ., news.train, kernel = "vanilladot")
+news_classifier
+
+news.ksvm.predict <- predict(news_classifier, news.test)
+
+(p3 <- table(news.ksvm.predict, news.test$shares))
+(NewsAccuracy_3 <- sum(diag(p3))/sum(p3) * 100)
+```
+
+**Do you see any improvement compared to last three techniques? Please completely explain your results and analysis.**
+
+"The first model (Naive Bayes - No Filter) had a weak prediction with an Accuracy of 51.7%. The second model (Naive Bayes - Filtered) performed the worst with only a 49.65% accuracy while the third model (SVM - Vanilla) had an prediction accuracy rate of at 54.7%, not much improved from the first model. These middling predicted accuracy rates could mean that the data may not work well with the machine learning techniques used here or that the selected response variable is not supported well with the remaining columns leading to underfitting."

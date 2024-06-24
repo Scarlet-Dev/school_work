@@ -1,0 +1,327 @@
+---
+title: "Correlation"
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+lab7 <- read.csv('./07_data.csv')
+
+library('dplyr')
+library('mice')
+library('corrplot')
+library('cocor')
+library('ppcor')
+library('moments')
+library('ggplot2')
+library('VIM', quietly = T)
+
+cleanup <- theme(panel.grid.major = element_blank(), 
+                panel.grid.minor = element_blank(), 
+                panel.background = element_blank(), 
+                axis.line.x = element_line(color = "black"),
+                axis.line.y = element_line(color = "black"),
+                legend.key = element_rect(fill = "white"),
+                text = element_text(size = 15))
+
+```
+
+*Title*: Big Data Analytics Services for Enhancing Business Intelligence
+
+*Abstract*: This article examines how to use big data analytics services to enhance business intelligence (BI). More specifically, this article proposes an ontology of big data analytics and presents a big data analytics service-oriented architecture (BASOA), and then applies BASOA to BI, where our surveyed data analysis shows that the proposed BASOA is viable for enhancing BI and enterprise information systems. This article also explores temporality, expectability, and relativity as the characteristics of intelligence in BI. These characteristics are what customers and decision makers expect from BI in terms of systems, products, and services of organizations. The proposed approach in this article might facilitate the research and development of business analytics, big data analytics, and BI as well as big data science and big data computing.
+
+# Dataset:
+
+    -	Gender of the participant surveyed on these topics
+    -	Temporality: an average score of the rated ability to adapt to change over time 1 (not changing) to 7 (changing a lot)
+    -	Expectability: a rated degree of satisfaction with the BI
+    -	Relativity: average score rating of how much better one system is than another in BI 1 (not very good) to 7 (very good)
+    -	Positive emotion: how positive participants felt about BI (higher scores are more positive, ranges from 1 to 7).
+
+```{r starting}
+    str(lab7)
+    names(lab7)
+    dim(lab7)
+    
+    summary(lab7)
+```
+
+# Data Screening:
+
+## Accuracy: 
+
+    a.	Include output that indicates if the data are or are not accurate.
+    b.	If the data are not accurate, delete the inaccurate scores.
+    c.	Include a summary that shows that you fixed the inaccurate scores.
+    
+```{r accuracy}
+accuracy <- lab7
+
+summary(accuracy)
+# From the summary we can see that some of the data is inaccurate and in the incorrect format.
+
+# For the categorical we convert them from character to factors
+accuracy$gender <- factor(accuracy$gender, levels = c("men", "women"), labels = c(1,2))
+accuracy$expectability <- factor(accuracy$expectability)
+
+
+# For the continous variables 'temporality', 'relativity' and 'positive' should all have a range of 1 - 7 with allowance of decimals. Therefore we have to change numbers over this limit to NA's.
+accuracy[, -c(1,3)][accuracy[, -c(1,3)] > 7.01] <- NA
+accuracy[, -c(1,3)][accuracy[, -c(1,3)] < 0.99] <- NA
+
+# Then we can omit these NA's from accuracy
+acc_no_na = na.omit(accuracy)
+
+# After replacing values that fell out of the variables range we can now create a summary to see the difference between the two data sets.
+summary(acc_no_na)
+```
+
+## Missing:
+
+    a.  Since any accuracy errors will create more than 5% missing data, exclude all data pairwise for the rest of the analyses. 
+    
+```{r missing}
+  missing <- acc_no_na
+
+  aggr(missing, numbers = T)
+
+  percentmiss <- function(x) { sum(is.na(x))/length(x) * 100}
+  missing_data <- apply(missing, 1, percentmiss)
+
+  table(factor(missing_data, levels = c(0, 20, 40, 60), labels = c("0%", "20%","40%","60%")))
+
+  over_5_rows <- subset(missing, missing_data > 5, use = "pairwise.complete.obs")
+  under_5_rows <- subset(missing, missing_data < 5, use = "pairwise.complete.obs")
+  
+```
+
+## Outliers:
+
+    a.	Include a summary of your mahal scores.
+    b.	What are the df for your Mahalanobis cutoff?
+    c.	What is the cut off score for your Mahalanobis measure?
+    d.	How many outliers did you have? 
+    
+```{r outliers}
+outliers <- under_5_rows
+mahal_summ <- mahalanobis(outliers[, -c(1,3)],
+                          colMeans(outliers[, -c(1,3)]),
+                          cov(outliers[,-c(1,3)], use = "pairwise.complete.obs"))
+# values
+summary(mahal_summ)
+df <- ncol(outliers[,-c(1,3)])-1
+cutoff <- qchisq(1-0.001, df)
+total_outliers = sum(mahal_summ > cutoff)
+summary(mahal_summ < cutoff)
+
+noout <- subset(outliers, mahal_summ < cutoff)
+```
+
+```{r, echo=FALSE}
+sprintf("From the summary there was %d degrees of freedom, a cutoff of %.2f and a %d outliers.", df, cutoff, total_outliers)
+```
+
+   
+# Assumptions:
+
+## Linearity: 
+
+    a.	Include a picture that shows how you might assess multivariate linearity.
+    b.	Do you think you've met the assumption for linearity? 
+
+```{r linearity}
+random <- rchisq(nrow(noout), 7)
+fake <- lm(random ~ ., data = noout)
+
+standardized <- rstudent(fake)
+fitvals <- scale(fake$fitted.values)
+
+{qqnorm(standardized)
+  abline(0,1)}
+
+# From the plot visual we can assert that the data set has linearity as the curve is mostly normal and most points falls within the range of or on the model line. 
+```
+
+## Normality: 
+
+    a.	Include a picture that shows how you might assess multivariate normality.
+    b.	Do you think you've met the assumption for normality? 
+
+```{r normality}
+hist(standardized, breaks = 15)
+
+length(standardized)
+skewness(noout[, -c(1,3)])
+kurtosis(noout[, -c(1,3)]) - 3
+
+# From the visual we can assert that the data is mostly normal as it passes the minimal length of 30, a value range between -2:2 and be supported by the kurtosis and skewness value for each variable being within the range as well.
+```
+
+## Homogeneity and Homoscedasticity: 
+
+    a.	Include a picture that shows how you might assess multivariate homogeneity.
+    b.	Do you think you've met the assumption for homogeneity?
+    c.	Do you think you've met the assumption for homoscedasticity?
+    
+```{r homogs}
+{plot(fitvals, standardized)
+  abline(0,0)
+  abline(v=0)}
+
+# From the plot visual shows that the points are distributed fairly well between the -2:2 box range on both the x and y axes. Thus we can assert that the data set is both homogeneous and has homoscedasticity.
+```
+
+# Hypothesis Testing / Graphs:
+
+Create a scatter plot of temporality and relativity.
+
+    a.	Be sure to check x/y axis labels and length.
+    b.	What type of relationship do these two variables appear to have?
+    
+```{r plot1}
+scatter1 <- ggplot(noout, aes(x = temporality, y = relativity, ))
+scatter1 + 
+  geom_point(color = "blue")+
+  geom_smooth(method = "lm", formula = y ~ x, color = "black")+
+  coord_cartesian(xlim = c(1.5,6.5), ylim = c(1.5,6.5))+
+  labs(x = "Temporality", y = "Relativity", title = "Scatter Plot of Temporality against\n Relativity Scores")+
+  cleanup
+
+# The two variables, temporality and relativity, have a weak but positive relationship between each other.
+```
+
+Create a scatter plot of expectability and positive emotion.
+
+    a.	Include a linear line on the graph. 
+    b.	Be sure to check x/y axis labels and length.
+    c.	What type of relationship do these two variables appear to have?
+
+```{r plot2}
+scatter2 <- ggplot(noout, aes(x = expectability, y = positive))
+scatter2+
+  geom_point(color = "dark green")+
+  geom_smooth(method = "lm", formula = y ~ x, color = "black")+
+  labs(x = "Expectability", y = "Positive", title = "Scatter Plot of Expectability against\n Positive Scores")+
+  coord_cartesian(ylim = c(0.5, 7.5))+
+  cleanup
+
+# From the plot visualization expectability and positive have no relationship between each other.
+```
+  
+Create a scatter plot of expectability and relativity, grouping by gender.
+
+    a.	Include a linear line on the graph. 
+    b.	Be sure to check x/y axis labels and length.
+    c.	What type of relationship do these two variables appear to have for each group?
+    
+```{r plot3}
+scatter3 <- ggplot(noout, aes(x = expectability, y = relativity,
+                              color = as.factor(gender), group = gender))
+scatter3+
+  geom_point()+
+  geom_smooth(method = "lm", formula = y ~ x, fullrange = TRUE)+
+  labs(x = "Expectability", y = "Relativity", title = "Scatter Plot of Expectability\n against Relativity Scores\n within Male and Female Participants")+
+  scale_color_manual(name = "Gender", labels = c("Male", "Female"), 
+                     values = c("steelblue","tomato"))+
+  cleanup
+
+# The two groups in gender do not share a similar relationship between their relativity and the expectability. Men have a moderate relationship while women do not have a relationship at all.
+```
+   
+Include a correlation table of all of the variables (cor).
+
+    a.	Include the output for Pearson.
+    b.	Include the output for Spearman.
+    c.	Include the output for Kendall.
+    d.	Which correlation was the strongest?
+    e.  For the correlations with gender, would point biserial or biserial be more appropriate?  Why?
+    
+```{r correl1 - setup}
+noout$gender <- as.integer(noout$gender)
+noout$expectability <- as.integer(noout$expectability)
+```
+
+```{r correl1-pearson}
+cor(noout, method = "pearson")
+```
+
+```{r correl1-kendall}
+cor(noout, method = "kendall")
+```
+
+```{r correl1-spearman}
+cor(noout, method = "spearman")
+```
+```{r, echo=FALSE}
+print("The correlation which has the strongest relation would be gender and temporality in all methods.")
+print("The gender correlation would be better used with biserrial correlation based on its dichotomy values of male(1) and female(2).")
+```
+
+
+Calculate confidence interval for temporality and relativity.
+
+```{r cicorrel1}
+cicorrel1 <- cor.test(noout$temporality, noout$relativity)
+cicorrel1
+```
+
+Calculate the difference in correlations for 1) temporality and expectbility and 2) temporality and positive emotion.
+
+    a.	Include the output from the test through Pearson's test.
+    b.	Is there a significant difference in their correlations?
+
+```{r correl2}
+cocor(~temporality + expectability | temporality + positive, data = noout)
+
+# There is a significant difference between the two correlations of temporality and expectability.
+```
+
+Calculate the difference in correlations for gender on temporality and relativity.
+
+    a.	Include the output from the test.
+    b.	Is there a significant difference in their correlations?
+    
+```{r correl3}
+men <- subset(noout, gender == 1)
+fem <-  subset(noout, gender == 2)
+
+gen_ind <- list(men,fem)
+
+cocor(~temporality + relativity | temporality + relativity, data = gen_ind)
+
+# There is not a significant difference between the two genders for temporality or relativity.
+```
+
+Calculate the partial and semipartial correlations for all variables, and include the output. 
+    a.	Are any of the correlations significant after controlling for all other relationships?
+    
+```{r partials}
+pcor(noout, method = "pearson")
+```
+
+
+```{r semi-partials}
+spcor(noout, method = "pearson")
+```
+
+```{r, echo=FALSE}
+print("Some of the correlations did have some signficance in both partial and semit partial correlations. The correlation with the highest frequency is between gender and temporality using the pearson method. Another correlation that occasionally occured is with gender and expectability and the other being gender and relativity.")
+```
+
+# Theory:
+
+    - What are we using as our model for understanding the data in a correlational analysis?
+      - We use the r or Beta model.
+    - How might we determine model fit?
+      - We can use the confidence interval or the r to determine the strength of the model.
+    - What is the difference between correlation and covariance?
+      - The correlation measures the strength and direction between two variables while covariance measures the distance between the variable and the variables mean.
+    - What is the difference between R and r?
+      - R refers to regression of multiple variables whil r is for regression of one x to one y variable.
+    - When would I want to use a nonparametric correlation over Pearson's correlation?
+      - We can use a non-parametric correlation when the variable is heiarchal/ordinal or small (n < 30).
+    - What is the distinction between semi-partial and partial correlations? 
+      - Partial measures the relationship between two variables with a thrid variable applied on both variables. Semi-partial acts the same with two variable but the third variable influences one of the variables.
+

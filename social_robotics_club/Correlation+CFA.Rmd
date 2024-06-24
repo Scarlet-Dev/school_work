@@ -1,0 +1,244 @@
+---
+title: "Correlation and CFA Test For Voice Project"
+author: 
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+library(dplyr)
+library(moments)
+library(pgirmess)
+library(pastecs)
+library(compute.es)
+library(Hmisc)
+library(corrplot)
+library(psych)
+library(semTools)
+library(lavaan)
+library(GPArotation)
+
+```
+
+
+# Dataset: 
+    DV(12)
+    - NARS The Negative Attitudes Towards Robots Scale
+    - MC   Manipulation Check
+    - AGIS Age Group Identification Scale
+    - MEC  Measurement of Ethos/Credibility
+    - SP   Social Presence
+    - RSP  Robot Server Perception
+    - PU   Perceived Usefulness
+    - PEU  Perceived Ease of Use
+    - ATSR Attitude Towards Social Robot
+    - AI   Adoption Intention
+    - AIQS Adjusted Interaction Quality Scale
+    - ASQS Adjusted Service Quality Scale
+    - IA2  Voice_Type * AGIS
+    - IA3  Voice_Gender * ATSR
+    
+    IV(2)
+    - Voice_Gender
+    - Voice_Type
+
+
+
+## Explore the dataset:
+```{r starting} 
+df_voice = read_excel("VDatav4.xlsx")
+summary(df_voice)
+str(df_voice)
+```
+
+#Correlation between 12 DVs
+
+## Preparation
+```{r Preparation}
+df_cor <- df_voice %>%
+  select(NARS,MC,AGIS,MEC,SP,RSP,PU,PEU,ATSR,AI,AIQS,ASQS)
+str(df_cor)
+```
+As shown in the results above, everything is numeric, good to go.
+
+
+## Correlation Matrix
+```{r Correlation Matrix}
+corM <- cor(df_cor)
+corM_round2 <- round(corM, digits = 2)
+corM_round2
+```
+
+## Matrix Visulization:
+```{r Matrix Visulization}
+corrplot(corM_round2,
+         type = "upper",
+         number.cex = 0.7,
+         addCoef.col = 'black',
+         order = 'AOE')
+```
+
+
+## Correlation Test :
+```{r Correlation Test}
+ptest <- rcorr(corM)
+round(ptest$P,3)
+```
+
+As shown in above:
+
+Note: SP basically has high correlation with every DVs, however, no significancy at all.
+
+NARS AND MC has a correlation at 0.05 with a significant P value = 0.02
+NARS AND MEC has a correlation at 0.4 with a significant P value = 0.04
+NARS AND PEU has a correlation at 0.05 with a significant P value = 0.01
+NARS AND ATSR has a correlation at 0.12 with a significant P value = 0.03
+NARS AND AI has a correlation at -0.04 with a significant P value = 0.01
+
+MC AND MEC has a correlation at -0.08 with a significant P value = 0.00
+MC AND RSP has a correlation at 0.58 with a significant P value = 0.01
+MC AND PU has a correlation at 0.56 with a significant P value = 0.01
+MC AND PEU has a correlation at 0.6 with a significant P value = 0.00
+MC AND ATSR has a correlation at 0.54 with a significant P value = 0.01
+MC AND AIQS has a correlation at 0.48 with a significant P value = 0.03
+MC AND ASQS has a correlation at 0.55 with a significant P value = 0.01
+
+AGIS AND MEC has a correlation at 0.01 with a significant P value = 0.02
+AGIS AND RSP has a correlation at 0.61 with a significant P value = 0.01
+AGIS AND PU has a correlation at 0.59 with a significant P value = 0.01
+AGIS AND PEU has a correlation at 0.47 with a significant P value = 0.05
+AGIS AND ATSR has a correlation at 0.52 with a significant P value = 0.03
+AGIS AND ASQS has a correlation at 0.5 with a significant P value = 0.05
+
+
+MEC AND PU has a correlation at 0.02 with a significant P value = 0.003
+MEC AND PEU has a correlation at -0.04 with a significant P value = 0.002
+MEC AND ATSR has a correlation at -0.04 with a significant P value = 0.001
+MEC AND AI has a correlation at -0.2 with a significant P value = 0.000
+MEC AND AIQS has a correlation at 0.01 with a significant P value = 0.007
+
+
+RSP AND PU has a correlation at 0.77 with a significant P value = 0.000
+RSP AND PEU has a correlation at 0.64 with a significant P value = 0.002
+RSP AND ATSR has a correlation at 0.65 with a significant P value = 0.001
+RSP AND AI has a correlation at 0.54 with a significant P value = 0.011
+RSP AND AIQS has a correlation at 0.62 with a significant P value = 0.003
+RSP AND ASQS has a correlation at 0.69 with a significant P value = 0.001
+
+PU AND PEU has a correlation at 0.71 with a significant P value = 0.000
+PU AND ATSR has a correlation at 0.71 with a significant P value = 0.000
+PU AND AI has a correlation at 0.49 with a significant P value = 0.021
+PU AND AIQS has a correlation at 0.66 with a significant P value = 0.002
+PU AND ASQS has a correlation at 0.71 with a significant P value = 0.000
+
+PEU AND ATSR has a correlation at 0.64 with a significant P value = 0.001
+PEU AND AI has a correlation at 0.47 with a significant P value = 0.020
+PEU AND AIQS has a correlation at 0.53 with a significant P value = 0.014
+PEU AND ASQS has a correlation at 0.60 with a significant P value = 0.004
+
+ATSR AND AI has a correlation at 0.51 with a significant P value = 0.010
+ATSR AND AIQS has a correlation at 0.58 with a significant P value = 0.006
+ATSR AND ASQS has a correlation at 0.63 with a significant P value = 0.002
+
+AI AND AIQS has a correlation at 0.48 with a significant P value = 0.025
+AI AND ASQS has a correlation at 0.47 with a significant P value = 0.026
+
+AIQS AND ASQS has a correlation at 0.74 with a significant P value = 0.000
+
+
+
+
+
+
+## Practice: 
+```{r CFA Practice}
+KMO(corM)
+library(nFactors)
+scree <- scree(df_cor)
+print(scree)
+
+```
+
+
+
+
+
+## CFA Preparation: 
+```{r CFA Preparation}
+df_cfa <- df_voice %>%
+  select(NARS,MC,AGIS,MEC,SP,RSP,PU,PEU,ATSR,AI,AIQS,ASQS,Voice_Gender,Voice_Type,VT,IA,IA2,IA3)
+str(df_cfa)
+
+```
+
+
+## Regression
+```{r Regression}
+model_regression <- lm(AI ~ AGIS, df_cfa)
+summary(model_regression)
+
+model_regression1 <- lm(AI ~ AGIS * Voice_Type, df_cfa)
+summary(model_regression1)
+
+```
+
+
+## Anova 
+```{r Anova}
+model_anova <- aov(AI ~ factor(AGIS) , df_cfa)
+summary(model_anova)
+
+
+model_anova1 <- aov(AI ~ factor(AGIS) * factor(Voice_Type) , df_cfa)
+summary(model_anova1)
+```
+
+
+## CFA:
+```{r CFA}
+aaa<-'
+ai1 =~ AI_Q1 + AI_Q2 + AI_Q3
+agis1 =~ AGIS_Q1 + AGIS_Q2 + AGIS_Q3 + AGIS_Q4 + AGIS_Q5 + AGIS_Q6 + AGIS_Q7 + AGIS_Q8 + AGIS_Q9 + AGIS_Q10 + AGIS_Q11 + AGIS_Q12 + AGIS_Q13
+sp1 =~ SP_Q1 + SP_Q2 + SP_Q4 + SP_Q5 + SP_Q6 + SP_Q7
+pu1 =~ PU_Q1 + PU_Q2 + PU_Q3 + PU_Q4 + PU_Q5 
+peu1 =~ PEU_Q1 + PEU_Q2 + PEU_Q3 + PEU_Q4 + PEU_Q5
+atsr1 =~ ATSR_Q1 + ATSR_Q2 + ATSR_Q3'
+
+model_cfa <- cfa(aaa,df_voice)
+summary(model_cfa, fit.measures = TRUE, standardized = TRUE)
+
+AI1 <- c("AI_Q1", "AI_Q2", "AI_Q3")
+alpha.pa1 = alpha(df_voice[AI1])
+print(alpha.pa1, digits = 3)
+
+
+AGIS1 <- c("AGIS_Q1", "AGIS_Q2", "AGIS_Q3", "AGIS_Q4","AGIS_Q5", "AGIS_Q6", "AGIS_Q7", "AGIS_Q8", "AGIS_Q9","AGIS_Q10", "AGIS_Q11", "AGIS_Q12", "AGIS_Q13")
+SP1 <- c("SP_Q1", "SP_Q2", "SP_Q3", "SP_Q4","SP_Q5", "SP_Q6", "SP_Q7")
+PU1 <- c("PU_Q1", "PU_Q2", "PU_Q3", "PU_Q4","PU_Q5")
+PEU1 <- c("PEU_Q1", "PEU_Q2", "PEU_Q3", "PEU_Q4","PEU_Q5")
+ATSR1 <- c("ATSR_Q1", "ATSR_Q2", "ATSR_Q3")
+
+
+alpha.pa1 = alpha(df_voice[AI1])
+print(alpha.pa1, digits = 3)
+
+alpha.pa1 = alpha(data[AGIS1])
+print(alpha.pa1, digits = 3)
+
+alpha.pa1 = alpha(data[SP1])
+print(alpha.pa1, digits = 3)
+
+alpha.pa1 = alpha(data[PU1])
+print(alpha.pa1, digits = 3)
+
+alpha.pa1 = alpha(data[PEU1])
+print(alpha.pa1, digits = 3)
+
+alpha.pa1 = alpha(data[ATSR1])
+print(alpha.pa1, digits = 3)
+
+
+```
+

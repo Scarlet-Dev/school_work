@@ -1,0 +1,207 @@
+---
+title: "Introduction to Data Analytics 2"
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Part 1: Experiment Design
+
+*Title*: Consumer Pseudo-Showrooming and Omni-Channel Product Placement Strategies
+
+*Abstract*: Recent advances in information technologies (IT) have powered the merger of online and offline retail channels into one single platform. Modern consumers frequently switch between online and offline channels when they navigate through various stages of the decision journey, motivating multichannel sellers to develop omni-channel strategies that optimize their overall profit. This study examines consumers' cross-channel search behavior of "pseudo-showrooming," or *the consumer behavior of inspecting one product at a seller's physical store before buying a related but different product at the same seller's online store, and investigates how such consumer behavior allows a multichannel seller to achieve better coordination between its online and offline arms* through optimal product placement strategies.
+
+Participants in the study were grouped into the following categories:
+
+-   Where_bought: Where they ended up purchasing an item: bought at the store, bought online.
+-   Who_bought: If they bought from the same or a different retailer.
+
+Each participant was then measured on:
+
+-   Money: how much money they spent in dollars on the product.
+-   Time: how much time (in minutes) they spent looking at the product online.
+
+1)  What would be one possible null hypothesis based on this study?
+
+```{r 1.1, echo=FALSE}
+print("The null hypothesis would be that there is no difference in consumer shopping behavior when factoring in the time it takes a consumer to make a purchase or if the product is from the same retailer or a different retailer.")
+```
+
+2)  What would be one possible alternative hypothesis based on this study?
+
+```{r 1.2, echo=FALSE}
+print("An alternative hypothesis about consumers' shopping behavior could be that shoppers who search online are more likely to spend less time purchasing the same product from online online than from a store.")
+```
+
+3)  Who are they sampling in this study?
+
+```{r 1.3,echo=FALSE}
+print("This study samples the consumers.")
+```
+
+4)  Who is the intended population in this study?
+
+```{r 1.4,echo=FALSE}
+print("The consumers who shop through the use of online and physical stores of these retailers.")
+```
+
+5)  Give an example of type 1 error based on this study (do not just define, explain in context how it might have happened here).
+
+```{r 1.5,echo=FALSE}
+print("A type 1 error may occurs where the null hypothesis is rejected when the alternative hypothesis holds true. This might occur ")
+```
+
+6)  Give an example of type 2 error based on this study (do not just define, explain in context how it might have happened here).
+
+```{r 1.6,echo=FALSE}
+print("A type 2 error would occur where the alternative hypothesis is rejected when the null hypothesis should be rejected instead. This might occur where the time taken to search for a product has a higher mean due to outside sources the user may have expereinced while navigating the online platform.")
+```
+
+# Part 2: Use the 04_data.csv to complete this portion.
+```{r Get the dataset,echo=FALSE}
+data_04 <- read.csv('./04_data.csv')
+```
+
+1)  For each IV list the levels (next to a, b):
+
+    a.  Where bought:
+
+    ```{r 2.1a,echo=FALSE}
+    # table(data_04$where_bought)
+
+    print("The 'where_bought has two conditions, 'online' and 'store'.")
+    ```
+
+    b.  Who bought:
+
+    ```{r 2.1b,echo=FALSE}
+    # table(data_04$who_bought)
+
+    print("The 'who_bought' variable has two levels, 'different' and 'same'.")
+    ```
+
+2)  What are the conditions in this experiment?
+
+```{r 2.2, echo=FALSE}
+print("Based on the levels presented there are four possible conditions consumers who searched online and bought the same product, consumers who also searched online and bought a different porduct, consumers who did not searched in a store and bought the same product and fnally consumers who searched at the store but ended up purchasing a different product.")
+```
+
+3)  For each condition list the means, standard deviations, and standard error for the conditions for time and money spent. Please note that means you should have several sets of M, SD, and SE. Be sure you name the sets of means, sd, and se different things so you can use them later.
+
+```{r 2.3 where bought-online descriptives}
+# online and same product
+online_same <- subset(data_04, select = c(money, time), data_04$where_bought == "online" & data_04$who_bought == "same")
+swb.online_same = psych::describe(online_same)
+swb.online_same
+
+# online but different item
+online_diff <- subset(data_04, select = c(money, time), data_04$where_bought == "online" & data_04$who_bought == "different")
+swb.online_diff = psych::describe(online_diff)
+
+swb.online_diff
+```
+
+```{r 2.3 where bought-store}
+# store and same product
+store_same <- subset(data_04, select = c(money, time), data_04$where_bought == "store" & data_04$who_bought == "same")
+swb.store_same = psych::describe(store_same)
+
+swb.store_same
+
+# store but different item
+store_diff <- subset(data_04, select = c(money, time), data_04$where_bought == "store" & data_04$who_bought == "different")
+swb.store_diff = psych::describe(store_diff)
+
+swb.store_diff
+```
+
+4)  Which condition appears to have the best model fit using the mean as the model (i.e. smallest error) for time?
+
+```{r 2.4,echo=FALSE}
+sprintf("The error for condition online_safe is %.2f", swb.online_same$se[2])
+sprintf("The error for condition online_diff is %.2f", swb.online_diff$se[2])
+
+sprintf("The error for condition store_same is %.2f", swb.store_same$se[2])
+sprintf("The error for condition store_diff is %.2f", swb.store_diff$se[2])
+
+print("Consumers who bought at the store for a different item seem to have the smallest error.")
+```
+
+5)  What are the df for each condition?
+
+```{r 2.5 degrees of freedom}
+# online_same
+os_df <- nrow(online_same) - 1
+od_df <- nrow(online_diff) -1
+
+ss_df <- nrow(store_same) - 1
+sd_df <-nrow(store_diff) -1
+```
+
+```{r, echo=FALSE}
+print("The degree of freedom for all conditions is 49")
+```
+
+
+6)  What is the confidence interval (95%) for the means?
+
+```{r 2.6 conf-interval}
+##money
+online_same_ci_money <- data.frame(swb.online_same$mean[1] - 1.96 * swb.online_same$se[1], swb.online_same$mean[1] + 1.96 * swb.online_same$se[1])
+
+online_diff_ci_money <- data.frame(swb.online_diff$mean[1] - 1.96 * swb.online_diff$se[1], swb.online_diff$mean[1] + 1.96 * swb.online_diff$se[1])
+
+store_same_ci_money <- data.frame(swb.store_same$mean[1] - 1.96 * swb.store_same$se[1], swb.store_same$mean[1] + 1.96 * swb.store_same$se[1])
+
+store_diff_ci_money <- data.frame(swb.store_diff$mean[1] - 1.96 * swb.store_diff$se[1], swb.store_diff$mean[1] + 1.96 * swb.store_diff$se[1])
+
+##time
+online_same_ci_time <- data.frame(swb.online_same$mean[2] - 1.96 * swb.online_same$se[2], swb.online_same$mean[2] + 1.96 * swb.online_same$se[2])
+
+online_diff_ci_time <- data.frame(swb.online_diff$mean[2] - 1.96 * swb.online_diff$se[2], swb.online_diff$mean[2] + 1.96 * swb.online_diff$se[2])
+
+store_same_ci_time <- data.frame(swb.store_same$mean[2] - 1.96 * swb.store_same$se[2], swb.store_same$mean[2] + 1.96 * swb.store_same$se[2])
+
+store_diff_ci_time <- data.frame(swb.store_diff$mean[2] - 1.96 * swb.store_diff$se[2], swb.store_diff$mean[2] + 1.96 * swb.store_diff$se[2])
+```
+
+7)  Use the MOTE library to calculate the effect size for the difference between money spent for the following comparisons (that means you'll have to do this twice):
+
+```{r 2.7 MOTE}
+##Store versus online when bought at the same retailer
+store_n_online_same_money.effect <- MOTE::d.ind.t(swb.online_same$mean[1], swb.store_same$mean[1], swb.online_same$sd[1], swb.store_same$sd[1], swb.online_same$n[1], swb.store_same$n[1], a = 0.05)
+
+store_n_online_same_money.effect
+
+##
+store_n_online_same_time.effect <- MOTE::d.ind.t(swb.online_same$mean[2], swb.store_same$mean[2], swb.online_same$sd[2], swb.store_same$sd[2], swb.online_same$n[2], swb.store_same$n[2], a = 0.05)
+store_n_online_same_time.effect
+
+##Store versus online when bought at a different retailer
+store_n_online_diff_money.effect <- MOTE::d.ind.t(swb.online_diff$mean[1], swb.store_diff$mean[1], swb.online_diff$sd[1], swb.store_diff$sd[1], swb.online_diff$n[1], swb.store_diff$n[1], a = 0.05)
+store_n_online_diff_money.effect
+
+store_n_online_diff_time.effect <- MOTE::d.ind.t(swb.online_diff$mean[2], swb.store_diff$mean[2], swb.online_diff$sd[2], swb.store_diff$sd[2], swb.online_diff$n[1], swb.store_diff$n[2], a = 0.05)
+store_n_online_diff_time.effect
+
+```
+
+8)  What can you determine about the effect size in the experiment - is it small, medium or large?
+
+```{r 2.8, echo=FALSE}
+
+print("The effect size is very small between the two conditions of store vs online in regards to money it is quite small. On the other hand, the time has an effect between store vs online does have a medium effect.")
+```
+
+9)  How many people did we need in the study for each comparison?
+
+```{r 2.9 pwr}
+##Store versus online when bought at the same retailer
+
+##Store versus online when bought at a different retailer
+
+```

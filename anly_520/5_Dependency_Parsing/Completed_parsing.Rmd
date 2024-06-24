@@ -1,0 +1,270 @@
+---
+title: 'Constituency and Dependency Parsing'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#do not change this
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries / R Setup
+
+- In this section, include the *R* set up for Python to run. 
+
+```{r}
+##r chunk
+```
+
+- In this section, include import functions to load the packages you will use for Python.
+
+```{python}
+##python chunk
+import nltk
+
+import spacy
+from spacy import displacy
+
+import random
+import re
+import string
+```
+
+## Import the grammar
+
+- Modify `grammar1` from the lecture notes to account for the following sentences:
+  - New sentence: "The dog ate the food."
+  - New sentence: "The dog walked by the cat in the park." 
+  
+```{python}
+##python chunk
+grammar1 = nltk.CFG.fromstring("""
+  # written grammar rules
+  S -> NP VP
+  VP -> V NP | V NP PP | V PP PP
+  PP -> P NP
+  NP -> Det N | Det N PP | N 
+  
+  # process the text with a POS tagger
+  # figure out the most common POS for each token
+  # lower case the answers
+  # using paste python options, make it into this format 
+  
+  # all the tokens
+  V -> "saw" | "ate" | "walked"
+  Det -> "a" | "an" | "the" | "my"
+  N -> "man" | "dog" | "cat" | "telescope" | "park" | "John" | "Mary" | "Bob" | "food"
+  P -> "in" | "on" | "by" | "with"
+""")
+
+sent1 = "The dog ate the food."
+sent2 = "The dog walked by the cat in the park."
+```
+
+## Process the sentences
+
+- Process the sentences with both the `RecursiveDescentParser` and `ShiftReduceParser`.
+
+```{python}
+##python chunk
+
+# take out punctuation 
+sent1 = sent1.translate(sent1.maketrans("", "", string.punctuation)).lower()
+sent2 = sent2.translate(sent1.maketrans("", "", string.punctuation)).lower()
+
+# set up parsers
+rd_parser = nltk.RecursiveDescentParser(grammar1)
+sr_parser = nltk.ShiftReduceParser(grammar1)
+
+# run the parsers, remember to tokenize
+## could also use instead to sentence.split() to split the words based on whitespace. Instead we will use word_tokenize
+## Additionally, we could use sent_tokenize for paragraphs or chapters. Eg: word_tokenize(sent_tokenize)
+
+for tree in rd_parser.parse(nltk.word_tokenize(sent1)):
+    print(tree)
+    
+for tree in rd_parser.parse(nltk.word_tokenize(sent2)):
+    print(tree)
+    
+for tree in sr_parser.parse(nltk.word_tokenize(sent1)):
+    print(tree)
+    
+for tree in sr_parser.parse(nltk.word_tokenize(sent2)):
+    print(tree)
+    
+```
+
+## Training Data
+
+- Use *two* of your tweets from the previous assignment and modify the training data for dependency parsing. 
+
+```{python}
+##python chunk 
+# Tweets from Mashable account
+tweets = [
+    "Aided by teeny platinum legs, these microscopic robots are marching into the future",
+    "This dexterous AI-operated robot hand taught itself to manipulate objects",
+    "This hair-brushing robot's brushing method is designed to care for patients and eliminate pain",
+    "Loyal robot dogs learn to follow their humans using prototype scanning technology",
+    "We want to swim with this slithering, underwater robot snake"
+]
+
+training_data = [
+
+      ( tweets[0], { 'entities': [ (re.search("robots", tweets[0]).start(), re.search("robots", tweets[0]).end(), "TECH") ] } ),
+
+      ( tweets[1], { 'entities': [ (re.search("AI", tweets[1]).start(), re.search("AI", tweets[1]).end(), "TECH"),
+          (re.search("manipulate", tweets[1]).start(), re.search("manipulate", tweets[1]).end(), "FEATURE" )
+      ] } ),
+
+      ( tweets[2], { 'entities': [ (re.search("robot\'s", tweets[2]).start(), re.search("robot\'s", tweets[2]).end(), "TECH"),
+          (re.search("patients", tweets[2]).start(), re.search("patients", tweets[2]).end(), "PERSON" ) ] } ),
+
+      ( tweets[3], {
+          'entities': [ (re.search("robot", tweets[3]).start(), re.search("robot", tweets[3]).end(), "TECH"),
+              (re.search("scanning", tweets[3]).start(), re.search("scanning", tweets[3]).end(), "FEATURE"),
+              (re.search("dogs", tweets[3]).start(), re.search("dogs", tweets[3]).end(), "ANIMAL" ),
+              (re.search("humans", tweets[3]).start(), re.search("humans", tweets[3]).end(), "PERSON" ) ],
+          'deps': ['amod', 'root', 'nsubj', 'case', 'nmod', 'prep', 'advmod', 'pron', 'case', 'dobj','cc','det'],
+          'heads': [0,0,1,1,3,3,7,2,2,6,2,2]
+          }
+      ),
+
+       ( tweets[4], {
+           'entities': [ (re.search("robot", tweets[4]).start(), re.search("robot", tweets[4]).end(), "TECH"),
+               (re.search("swim", tweets[4]).start(), re.search("swim", tweets[4]).end(), "FEATURE") ],
+           'deps': ['pron', 'nsubj','root', 'prep', 'punct', 'advmod', 'nmod', 'marker', 'det','amod', 'dobj'],
+           'heads': [1, 1, 3, 3, 3, 5, 4, 6, 6, 6] #11 so between 0-10
+           }
+       )
+]
+
+#"We0 want1 to2 swim3 with4 this5 slithering6,7 underwater8 robot9 snake10"
+
+# training data
+# tweet1 = "Congratulations Tesla Team!!"
+# tweet2 = "Twitter is rolling out View Count, so you can see how many times a tweet has been seen!"
+# tweet3 = "Is this true, @SenatorSinema and @SenatorTester?"
+# tweet4 = "One of many product improvements coming to financial Twitter!"
+# tweet5 = "Congrats to SpaceX Team on 3 perfect orbital launches within 36 hours!!!"
+#  
+# none of this spacing matters 
+# training_data = [ 
+#     (tweet1, { 'entities': [ (re.search("Tesla", tweet1).start(),
+#                               re.search("Tesla", tweet1).end(), 
+#                               "COMPANY") ],
+#               'deps': ["ROOT", "nmod", "nsubj", "punct", "punct"], 
+#               'heads': [0, 2, 0, 0, 0] } ), 
+#     (tweet2, { 'entities': [ (re.search("Twitter", tweet2).start(),
+#                               re.search("Twitter", tweet2).end(), 
+#                               "COMPANY"), 
+#                               (re.search("View Count", tweet2).start(), 
+#                                re.search("View Count", tweet2).end(),
+#                                "FEATURE") ] } ), 
+#     (tweet3, { 'entities': [ (re.search("@SenatorSinema", tweet3).start(),
+#                               re.search("@SenatorSinema", tweet3).end(), 
+#                               "PERSON"),
+#                              (re.search("@SenatorTester", tweet3).start(),
+#                               re.search("@SenatorTester", tweet3).end(), 
+#                               "PERSON")] } ), 
+#     (tweet4, { 'entities': [ (re.search("Twitter", tweet4).start(),
+#                               re.search("Twitter", tweet4).end(), 
+#                               "COMPANY") ],
+#                 'deps': ["nmod", "prep", "nmod", "nmod", "nsubj", "ROOT", "prep", "nmod", "dobj", "punct"], 
+#                 'heads': [2, 2, 4, 4, 5, 5, 8, 8, 5, 5]} ), 
+#     (tweet5, { 'entities': [ (re.search("SpaceX", tweet5).start(),
+#                               re.search("SpaceX", tweet5).end(), 
+#                               "COMPANY") ] } )
+#   ] #end list
+```
+
+## Build the model
+
+- Create a blank spacy pipeline.
+- Add the parser to the pipeline.
+- Add the labels to the pipeline.
+
+```{python}
+##python chunk
+#empty spacy model
+nlp = spacy.blank("en") 
+#add a name for training
+nlp.vocab.vectors.name = 'example_model_training'  
+#add NER pipeline
+ner = nlp.create_pipe('ner')  
+#add pipeline to our blank model we created
+nlp.add_pipe(ner, last=True)
+#add the parser to it
+parser = nlp.create_pipe('parser')
+nlp.add_pipe(parser, first=True)
+#add labels to ner pipe
+nlp.entity.add_label('TECH')
+nlp.entity.add_label('FEATURE')
+nlp.entity.add_label('PERSON')
+nlp.entity.add_label('ANIMAL')
+# nlp.entity.add_label('PERSON')
+# nlp.entity.add_label('COMPANY')
+# nlp.entity.add_label("FEATURE")
+
+for _, annotations in training_data:
+        for dep in annotations.get('deps', []):
+            parser.add_label(dep)
+```
+
+## Train the model
+
+- Train the model with 10 iterations of the data. 
+
+```{python}
+##python chunk
+
+#begin training
+optimizer = nlp.begin_training()
+
+n_iter = 10
+#run training 
+for itn in range(n_iter):
+    random.shuffle(training_data)
+    losses = {}
+    for text, annotations in training_data:
+        nlp.update([text], [annotations], sgd=optimizer, losses=losses)
+    print(losses)
+
+nlp.to_disk('./models3')
+```
+
+## Test the model
+
+- Test your dependency model on a similar tweet.
+
+```{python}
+##python chunk
+new_tweet = "Twitter is influencing Tesla and SpaceX stock and View Count will go down right @SenatorTester?"
+saved_output = nlp(new_tweet)
+for entity in saved_output.ents:
+  print(entity.label_, ' | ', entity.text, "\n")
+  
+```
+
+## Visualize
+
+- Include a visualization of the tweet you just tested. 
+- Remember, you should modify the chunk options to show the picture in the knitted document, since it does not display inline. 
+
+```{python}
+##python chunk
+saved_output = nlp(new_tweet)
+ 
+#spacing does matter here 
+for entity in saved_output.ents:
+  print(entity.label_, ' | ', entity.text)
+ 
+print('Dependencies', [(t.text, t.dep_, t.head.text) for t in saved_output])
+```
+
+```{python, results='asis'}
+displacy.render(saved_output, options={'distance': 110, 'arrow_stroke': 2,'arrow_width': 8})
+```
+

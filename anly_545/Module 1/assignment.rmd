@@ -1,0 +1,39 @@
+---
+title: "Module 1 - Introduction"
+author: 'Akane Simpson'
+date: "`r Sys.Date()`"
+output: html_document
+editor_options:
+  chunk_output_type: console
+---
+
+**Instructions**:
+
+1. Put your name at the top of the file
+2. Knit the file to HTML
+3. Submit _both_ the HTML and the RMD
+
+---
+
+Test out all the libraries we need for the course.
+
+```{r message = F}
+library(knitr)
+library(kableExtra)
+library(dplyr)
+library(vcd)
+library(vcdExtra)
+library(MASS)
+library(reshape2)
+library(ggplot2)
+```
+
+Simplest possible formula: $x = 1$
+
+Simplest possible r chunk_output_type
+
+```{r}
+x <- 1 + 1
+```
+
+Inline `R` chunk $x=$ `r x`

@@ -1,0 +1,225 @@
+---
+title: 'Assignment #4'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+header-includes:
+  - \usepackage[fleqn]{amsmath}
+  - \usepackage[utf8]{inputenc}
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(rethinking)
+```
+
+## Chapter 5 - Many Variables and Spurious Waffles
+
+This chapter introduced multiple regression, a way of constructing descriptive models for how the mean of a measurement is associated with more than one predictor variable. The defining question of multiple regression is: *What is the value of knowing each predictor, once we already know the other predictors?* The answer to this question does not by itself provide
+any causal information. Causal inference requires additional assumptions. Simple directed acyclic graph (DAG) models of causation are one way to represent those assumptions.
+
+Place each answer inside the code chunk (grey box).  The code chunks should contain a text response or a code that completes/answers the question or activity requested. Make sure to include plots if the question requests them.  
+
+Finally, upon completion, name your final output `.html` file as: `YourName_ANLY505-Year-Semester.html` and publish the assignment to your R Pubs account and submit the link to Canvas. Each question is worth 5 points.
+
+## Questions
+
+**5-1.** Which of the linear models below are multiple linear regressions?
+\begin{align}
+  {μ_i = α + βx_i} \tag{1}\\
+  μ_i = β_xx_i + β_zz_i \tag{2} \\
+  μ_i = α + β(x_i − z_i) \tag{3} \\
+  μ_i = α + β_xx_i + β_zz_i \tag{4} \\
+\end{align}
+
+```{r 5-1}
+# "Option 2 and 4 would be the multiple linear regressions as they include two variables. Although option 2 lacks an explicit a component we can assume a to be 0 in this case."
+```
+
+**5-2.** Write down a multiple regression to evaluate the claim: *Neither amount of funding nor size
+of laboratory is by itself a good predictor of time to PhD degree; but together these variables are both
+positively associated with time to degree.* Write down the model definition and indicate which side of
+zero each slope parameter should be on.
+
+```{r 5-2}
+# Where variable
+#   Time to Phd: Tpd(Our )
+#   Funding Amount: Fa (Predictor 1)
+#   Lab Size: Ls (Predictor 2)
+
+# Tpd = Normal(mu, sigma)
+# where mu = a + (B_f*Fa) + (B_l*Ls)
+
+# The slopes of each predictors should be positive as you cannot have a negative funding amount or laboratory size
+```
+
+
+**5-3.** Invent your own example of a spurious correlation. An outcome variable should be correlated
+with both predictor variables. But when both predictors are entered in the same model, the correlation between the outcome and one of the predictors should mostly vanish (or at least be greatly reduced).  Plot the correlation before analysis, designate and run the 'quap' model, show the 'precis' table, plot the results and explain.
+
+```{r 5-3}
+# Let us assume there is a steak restaurant that cooks steaks to order. A study was done to find the cook times for orders for this restaurant. Some of the variables taken into account may include steak size, steak type, additional modifications. Suppose the study included additional variables that have a correlation between order cook times how much precipitation happened on that day and the vehicle accident rate.
+
+n <- 30
+order_time <- rnorm(n, mean = 5, sd = 2)
+precipit <- rnorm(n, mean = order_time, sd = 1)
+accident <- rnorm(n, mean = order_time, sd = 0.1)
+
+coll <- data.frame(order_time, precipit, accident)
+
+pairs(coll)
+```
+
+```{r}
+corrplot::corrplot(cor(coll), method="shade", type="upper")
+```
+
+```{r}
+model1 <- quap(
+  alist(
+    order_time <- dnorm(mu, sigma),
+    mu <- a + bP*precipit,
+    a ~ dnorm(0, 0.2),
+    bP ~ dnorm(0, 1),
+    sigma <- dexp(1)
+  ),
+  data = coll
+)
+
+precis(model1)
+```
+
+
+```{r}
+model2 <- quap(
+  alist(
+    order_time <- dnorm(mu, sigma),
+    mu <- a + bP*precipit + bA*accident,
+    a ~ dnorm(0, 0.2),
+    bP ~ dnorm(0, 1),
+    bA ~ dnorm(0, 0.1),
+    sigma <- dexp(1)
+  ),
+  data = coll
+)
+
+precis(model2)
+```
+
+**5-4.** Invent your own example of a masked relationship. An outcome variable should be correlated
+with both predictor variables, but in opposite directions. And the two predictor variables should be
+correlated with one another. Plot the correlation before analysis, designate and run the 'quap' model, show the 'precis' table, plot the results and explain.
+
+```{r 5-4}
+n <- 50
+money <- rnorm(n, mean = 5, sd = 2)
+gas_prices <- rnorm(n, mean = money, sd = 1)
+distance <- rnorm(n, mean = money - gas_prices, sd = 0.1)
+
+journey <- data.frame(money, gas_prices, distance)
+
+pairs(journey)
+```
+
+```{r}
+corrplot::corrplot(cor(journey), method="shade", type="upper")
+```
+
+```{r}
+journey.md1 <- quap(
+  alist(
+    money <- dnorm(mu, sigma),
+    mu <- a + bG*gas_prices,
+    a ~ dnorm(0, 0.2),
+    bG ~ dnorm(0, 0.5),
+    sigma <- dexp(1)
+  ),
+  data = journey
+)
+
+precis(journey.md1)
+```
+
+```{r}
+journey.md2 <- quap(
+  alist(
+    money <- dnorm(mu, sigma),
+    mu <- a + bG*gas_prices + bD*distance,
+    a ~ dnorm(0, 0.2),
+    bG ~ dnorm(0, 0.5),
+    bD ~ dnorm(0, 0.5),
+    sigma <- dexp(1)
+  ),
+  data = journey
+)
+
+precis(journey.md2)
+```
+
+
+**5-5.** In the divorce data, States with high numbers of members of the Church of Jesus Christ of
+Latter-day Saints (LDS) have much lower divorce rates than the regression models expected. Find a
+list of LDS population by State and use those numbers as a predictor variable, predicting divorce rate using marriage rate, median age at marriage, and percent LDS population (possibly standardized).
+You may want to consider transformations of the raw percent LDS variable. Make sure to include the 'quap' model, the 'precis' table and your explanation of the results.
+
+```{r 5-5}
+data("WaffleDivorce")
+
+divorce <- WaffleDivorce
+divorce$LDS <- c(0.0077, 0.0453, 0.0610, 0.0104, 0.0194, 0.0270, 0.0044, 0.0057, 0.0041, 0.0075, 0.0082, 0.0520, 0.2623, 0.0045, 0.0067, 0.0090, 0.0130, 0.0079, 0.0064, 0.0082, 0.0072, 0.0040, 0.0045, 0.0059, 0.0073, 0.0116, 0.0480, 0.0130, 0.0065, 0.0037, 0.0333, 0.0041, 0.0084, 0.0149, 0.0053, 0.0122, 0.0372, 0.0040, 0.0039, 0.0081, 0.0122, 0.0076, 0.0125, 0.6739, 0.0074, 0.0113, 0.0390, 0.0093, 0.0046, 0.1161)
+
+divorce$logLDS <- log(divorce$LDS)
+divorce$logLDS.s <- (divorce$logLDS - mean(divorce$logLDS)) / sd(divorce$logLDS)
+
+```
+
+```{r}
+hist(divorce$LDS)
+```
+
+```{r}
+hist(divorce$logLDS)
+```
+
+```{r}
+hist(divorce$logLDS.s)
+```
+
+```{r}
+div.model <- quap(
+  alist(
+    Divorce ~ dnorm(mu, sigma),
+    mu <- a + bm * Marriage + ba * MedianAgeMarriage + bl * logLDS.s,
+    a ~ dnorm(10, 20),
+    bm ~ dnorm(0, 10),
+    ba ~ dnorm(0, 10),
+    bl ~ dnorm(0, 10),
+    sigma ~ dunif(0, 5)
+  ),
+  data = divorce
+)
+precis(div.model)
+```
+
+
+**5-6.** In the divorce example, suppose the DAG is: M → A → D. What are the implied conditional
+independencies of the graph? Are the data consistent with it? (Hint: use the dagitty package)
+
+```{r 5-6}
+library(dagitty)
+
+div.dag <- dagitty("dag{ M -> A -> D}")
+# Where M(Marriage Rate) influences D(Divorce Rate) through A(Age)
+
+coordinates(div.dag) <- list(x = c(M=0, A=1, D=2), y = c(M=1, A=0, D=1))
+drawdag(div.dag)
+```
+
+```{r}
+impliedConditionalIndependencies(div.dag)
+```
+
+```{r}
+# The implied conditional independence for D(Divorce Rate) is D is independent of M(Marriage Rate) through the use of A(Age).
+```
+

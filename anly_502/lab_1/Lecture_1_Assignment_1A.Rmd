@@ -1,0 +1,48 @@
+---
+title: "Lecture 1: Assignment 1A"
+author: "Akane Simpson"
+date: '`r Sys.Date()`'
+output: 
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Get the source
+
+```{r}
+arb <- source("http://www.openintro.org/stat/data/arbuthnot.R")$value
+```
+
+Next check that the class and the structure are correct. If correct then assign to 
+```{r}
+
+class(arb)
+str(arb)
+```
+
+Next we can summarize on the 'boys' and 'girls' columns.
+```{r}
+# Summary of the boys column
+print("Summary of 'Boys' column")
+summary(arb$boys)
+
+# Summary of the girls column
+print("Summary of 'Girls' column")
+summary(arb$girls)
+```
+
+Next we need to plot the line charts for each dependent variable(boys, girls & total)
+```{r}
+# Total of Boys & Girls
+arb$total = (arb$boys + arb$girls)
+plot(x = arb$year, y = arb$total, type="l", ylim= c(0, 16000), col = "purple", main ="Total of Boys & Girls by Year", xlab = "Year", ylab = "Total", frame.plot = TRUE, pch = 10)
+
+#Plot lines for 'boys' column and 'girls' column
+lines(arb$year, arb$boys, type = "l", col = "blue")
+lines(arb$year, arb$girls, type = "l", col = "red")
+
+legend("bottomright", legend = c("Total","Boys","Girls"), col = c("purple","blue","red"), lty = 1:1)
+```

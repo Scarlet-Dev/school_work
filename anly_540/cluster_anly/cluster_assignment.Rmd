@@ -1,0 +1,140 @@
+---
+title: 'Cluster Analysis'
+author: "STUDENT NAME"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load the libraries + functions
+
+Load all the libraries or functions that you will use to for the rest of the assignment. It is helpful to define your libraries and functions at the top of a report, so that others can know what they need for the report to compile correctly.
+
+```{r libaries}
+##r chunk
+
+```
+
+## The Data
+
+The data for this assignment is language styles in movie descriptions (same dataset used in logistic regression lecture). The dataset for this assignment includes the movie's title, genre, and 13 measures of language style described below. The goal of the current assignment is to explore the language styles used in movie descriptions may be used to group movies into coherent clusters.
+
+  Language Styles:
+    - adj: percent of adjectives used
+    - interrog: percent of interrogatives used (e.g. what, how)
+    - number: percent of numbers used
+    - affect: percent of emotion words used
+    - posemo: percent of positive emotion words used
+    - negemo: percent of negative emotion words used
+    - social: percent of social words (e.g. friend, family)
+    - female: percent of references to women
+    - male: percent of references to men
+    - see: percent of words related to vision and seeing
+    - hear: percent of words related to sounds and hearing
+    - feel: percent of words related to feeling and touch
+    - death: percent of words related to death and dying
+
+- Load the data.
+- Use row.names(df) = df$Title to set the rownames as title of the movies from the data.
+- Delete columns 1, 2, and 3 from the data.
+- Flip the data using `t()`, as the clustering variables should be rows in the dataframe.
+
+```{r loaddata}
+##r chunk
+
+```
+
+## Create Distances
+
+While the data set includes popular distance measures, we still need to figure out how these distance measures are related to each other. Create distance measures in Euclidean or Manhattan distance. 
+
+```{r distances}
+##r chunk
+
+```
+
+## Create Cluster
+
+- Use hierarchical clustering to examine the relatedness of these measures. 
+- Create a dendogram plot of the results. 
+
+Note: If one variable is alone in a cluster, remove it from the data frame and:
+- Rerun the distance and cluster measures.
+- Create a new plot of the cluster analysis (the branches may be hard to see but they are clearly separating out more).
+
+
+```{r cluster}
+##r chunk
+
+```
+
+## Silhouette
+
+- Using `sapply` calculate the average silhouette distances for 2 to n-1 clusters on only the second cluster analysis.
+
+```{r}
+##r chunk
+
+```
+
+## Examine those results
+
+- Replot the dendogram with cluster markers based on the highest silhouette value.
+
+```{r replot}
+##r chunk
+
+```
+
+## Snake Plots
+
+Make a snake plot of the results by plotting a random set of 25-40 movie titles. 
+    - If you have more than two clusters, pick one pair you find interesting.
+
+```{r snakeplot}
+
+```
+
+## Bootstrapping
+
+- Use `pvclust` to validate your solution on the dataframe.
+- Plot the pv cluster. 
+- Include and run the following line: cluster_labels <- rownames(df)
+
+```{r pvc}
+
+
+```
+
+## Working with Python
+
+- Load the Python libraries and import the dataset from R. 
+
+```{python load_everything}
+
+```
+
+- Create a dendogram of the variables.
+
+```{python py_dendogram}
+
+```
+
+- Calculate the silhouette silhouette distances for 2 to n-1 clusters.
+
+```{python silhouette2}
+
+
+```
+
+
+## Interpretation
+
+- Interpret the results. Write at least one full paragraph explaining what can be learned from the analysis.
+  - ANSWER: 
+  
+- Describe a set of texts and research question that interests you that could be explored using this method. Basically, what is a potential application of this method to another area of research?
+  - ANSWER: 

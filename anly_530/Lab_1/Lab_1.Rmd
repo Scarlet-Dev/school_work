@@ -1,0 +1,258 @@
+---
+title: "Lab 1"
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+credit <- read.csv('credit.csv')
+whitewines <- read.csv('whitewines.csv')
+news <- read.csv('OnlineNewsPopularity_for_R.csv')
+```
+
+```{r}
+library(C50)
+library(randomForest)
+library(gmodels)
+library(ggplot2)
+library(caret)
+library(rpart)
+library(rpart.plot)
+```
+
+```{r}
+str(credit)
+summary(credit$Credit.Amount)
+table(credit$Creditability)
+```
+
+
+## Method 1 - Decision Tree
+```{r}
+set.seed(12345)
+
+credit_rand <- credit[order(runif(1000)), ]
+
+# Using a 90-10 split
+credit_train <- credit_rand[1:900, ]
+credit_test <- credit_rand[901:1000, ]
+
+prop.table(table(credit_train$Creditability))
+prop.table(table(credit_test$Creditability))
+
+credit_test$Creditability <- factor(credit_test$Creditability)
+credit_train$Creditability <- factor(credit_train$Creditability)
+
+decision_credit_model <- C5.0(x = credit_train[-1], 
+                              y = credit_train$Creditability)
+
+# Predict - Model vs Test
+decision_credit_predict <- predict(decision_credit_model, credit_test)
+summary(decision_credit_predict)
+
+
+# Confusion Table
+CrossTable(credit_test$Creditability, decision_credit_predict, 
+           prop.chsq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn=c('Actual Credability', 'Predicted Credability'))
+
+# Evaluation
+(p_1 <- table(decision_credit_predict, credit_test$Creditability))
+(Accuracy_1 <- sum(diag(p_1))/sum(p_1) * 100)
+credit.mpart_1 <- rpart(Creditability ~ ., data = credit_train)
+
+summary(credit.mpart_1)
+summary(credit.mpart_1$Creditability)
+
+# Visualize
+rpart.plot(credit.mpart_1, type = 1, extra = 102)
+```
+
+
+Q1- If you see an accuracy of 100%, what does it mean? Does this mean that we 
+design a perfect model? This is some thing that needs more discussion. Write a 
+few sentences about accuracy of 100%.
+
+"A model that has a 100% accuracy sounds good in a general sense but
+within data science this could be signs to a problematic model or an error 
+within it. A perfect model does not exist in the real world and needs to take
+into account the accuracy, precision and recall. Precision refers to quality of
+a positive prediction made by the model (ie true positives). Recall is the 
+measure of how many relevant elements were detected."
+
+
+## Method 2 - Random Forest
+```{r}
+set.seed(6789)
+
+# Predict
+random_credit_model <- randomForest(Creditability ~ ., data = credit_train)
+summary(random_credit_model)
+
+random_credit_predict <- predict(random_credit_model, credit_test)
+
+# Evaluation
+(p_2 <- table(random_credit_predict, credit_test$Creditability))
+(Accuracy_2 <- sum(diag(p_2))/sum(p_2) * 100)
+credit.mpart_2 <- rpart(Creditability ~ ., data = credit_train)
+
+summary(credit.mpart_2)
+summary(credit.mpart_2$quality)
+
+# Visualize
+rpart.plot(credit.mpart_2, type = 1, extra = 102)
+```
+
+
+Q2- What are the three most important features in this model.
+
+```{r}
+importance(random_credit_model)
+```
+
+
+Now, Change the random seed to 23458 and find the new accuracy of random forest.
+
+```{r}
+set.seed(23458)
+
+# Predict
+random_credit_model2 <- randomForest::randomForest(Creditability ~ Credit.Amount
+                                                   + Account.Balance 
+                                                   + Age..years., 
+                                                  data = credit_train)
+summary(random_credit_model2)
+```
+
+
+```{r}
+# Evaluation
+random_credit_predict2 <- predict(random_credit_model2, credit_test)
+(p_22 <- table(random_credit_predict2, credit_test$Creditability))
+(Accuracy_22 <- sum(diag(p_22))/sum(p_22) * 100)
+```
+
+
+## Method 3 - Regression on Decision Trees
+```{r}
+str(whitewines)
+```
+
+
+```{r}
+table(whitewines$quality)
+
+set.seed(8899)
+
+wine_train <- whitewines[1:3674,]
+wine_test <- whitewines[3675:4898,]
+
+prop.table(table(wine_train$quality))
+prop.table(table(wine_test$quality))
+
+
+(wine.part <- rpart(quality ~ ., data=wine_train))
+
+# Predictions
+wine.predict <- predict(wine.part, wine_test)
+
+# Evaluation
+rpart.plot(wine.part, digits=3)
+
+summary(wine.predict)
+summary(wine_test$quality)
+```
+
+```{r}
+cor(wine.predict, wine_test$quality)
+```
+
+
+Q3- What is your interpretation about this amount of RMSE?
+
+"The RMSE is 0.535 where the lower the RMSE value the more the model values fit 
+the observed data while the higher the RMSE value the further away the model and
+projected value."
+
+
+## Method 4 - Online News Popularity
+```{r}
+news_short <- data.frame(news$n_tokens_title, news$n_tokens_content, 
+                         news$n_unique_tokens, news$n_non_stop_words, 
+                         news$num_hrefs, news$num_imgs, news$num_videos, 
+                         news$average_token_length, 
+                         news$num_keywords, news$kw_max_max, 
+                         news$global_sentiment_polarity, 
+                         news$avg_positive_polarity, news$title_subjectivity, 
+                         news$title_sentiment_polarity, 
+                         news$abs_title_subjectivity, 
+                         news$abs_title_sentiment_polarity, news$shares)
+
+colnames(news_short) <- c("n_tokens_title", "n_tokens_content", "n_unique_tokens",
+                         "n_non_stop_words", "num_hrefs", "num_imgs", "num_videos",
+                         "average_token_length", "num_keywords", "kw_max_max",
+                         "global_sentiment_polarity", "avg_positive_polarity",
+                         "title_subjectivity", "title_sentiment_polarity", 
+                         "abs_title_subjectivity",
+                         "abs_title_sentiment_polarity","shares")
+
+str(news_short)
+summary(news_short)
+
+
+news_short$shares <- as.factor(ifelse(news_short$shares > 1400, 'yes', 'no'))
+```
+
+
+```{r}
+set.seed(11323)
+
+news_rand <- news_short[order(runif(10000)),]
+
+news.train <- news_rand[1:9000,]
+news.test <- news_rand[9001:10000,]
+
+prop.table(table(news.train$shares))
+prop.table(table(news.test$shares))
+```
+
+
+```{r}
+########### -------------------- Method 1 --------------------------- ########
+# Decision Tree
+news_model <- C5.0(news.train[-17], news.train$shares)
+summary(news_model)
+
+# Prediction & Evaluation
+news_predict <- predict(news_model, news.test)
+(p_news_1 <- table(news_predict, news.test$shares))
+(Accuracy_News_1 <- sum(diag(p_news_1))/sum(p_news_1) * 100)
+```
+
+
+```{r}
+CrossTable(news.test$shares, news_predict, prop.chsq = FALSE, prop.c = FALSE, 
+           prop.r = FALSE, dnn=c('Actual Shares', 'Predicted Shares'))
+```
+
+
+```{r}
+########### -------------------- Method 2 --------------------------- ########
+### Random Forest
+news_predict_model <- randomForest(shares ~ ., data = news.train)
+summary(news_predict_model)
+```
+
+
+```{r}
+# Prediction & Evaluation
+news_predict <- predict(news_predict_model, news.test)
+(p_news_2 <- table(news_predict, news.test$shares))
+(Accuracy_News_2 <- sum(diag(p_news_2))/sum(p_news_2) * 100)
+```
+
+```{r}
+importance(news_predict_model)
+```

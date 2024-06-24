@@ -1,0 +1,217 @@
+```{r setup, include=FALSE}
+library(tidyverse)
+library(ggmosaic)
+library(ggcorrplot)
+library(stringr)
+library(corrplot)
+library(kableExtra)
+library(knitr)
+
+replaceCommas<-function(x){
+  x<-as.numeric(gsub("\\,", "", 
+                     gsub("\\ ", "", x)))
+}
+
+```
+
+```{r}
+# Alternative Fuel Stations
+raw_afs <- readr::read_csv('./raw_data/alt_fuel_stations (Apr 30 2022).csv')
+historic_afs <- readxl::read_xlsx('./raw_data/historical_afs_count_2020.xlsx', 1, col_names = FALSE)
+reg_ev_state <- readxl::read_xlsx('./raw_data/10962-ev-registration-counts-by-state_6-11-21.xlsx', 1)
+ny.ev.reg.per.county.raw <- read.csv('./raw_data/Electric_Vehicles_per_County_New_York.csv')
+ny.zip.county <- read.csv('./raw_data/New_York_State_ZIP_Codes-County_FIPS_Cross-Reference.csv')
+ny.median.income.zip <- readxl::read_xlsx("./raw_data/median income/ACSST5Y2020.S1903-2022-06-16T050050.xlsx", 3)
+
+```
+
+```{r}
+# Get historic alt fuel stations per year
+colnames(historic_afs) <- historic_afs[2,]
+historic_afs <- historic_afs[-c(1, 2), ]
+
+# historic for tristate
+tri.historic.ev <- historic_afs %>% filter(State == "New York" | 
+                                             State == "New Jersey" | State == "Connecticut") %>% 
+  select(State, `Electrica (stations / charging outlets Level 1 / Level 2 / DC Fast)`) %>% 
+  rename(Electric.Stations = `Electrica (stations / charging outlets Level 1 / Level 2 / DC Fast)`)
+
+tri.historic.ev[c('Electric.Stations','Charging.Outlets', 'Charging.Lv1', 'Charging.Lv2', 'Dc.Fast')] <- 
+  str_split_fixed(string = tri.historic.ev$Electric.Stations, pattern = ' / ', 5) %>% 
+  trimws(which = "both")
+
+tri.historic.ev[c(2:6)] <- apply(tri.historic.ev[c(2:6)], FUN = replaceCommas, MARGIN = 2)
+
+tri.historic.ev <- tri.historic.ev %>% 
+  mutate(Totals = rowSums(across(where(is.numeric)))) %>% 
+  mutate(tri.historic.ev, Percent.Station.Only = Electric.Stations/Totals * 100)
+
+# write.csv(tri.historic.ev, file = "./processed/triState.historicEV.csv")
+```
+
+```{r}
+# Get EV registration
+reg_ev_state <- reg_ev_state[,c(1,2)]
+colnames(reg_ev_state) <- reg_ev_state[1,]
+reg_ev_state <- reg_ev_state[-1,]
+
+tri.reg_ev_count <- reg_ev_state %>%  filter(State == "New York" | 
+                                   State == "New Jersey" | State == "Connecticut") %>% 
+  rename(EV.Registrations = `Registration Count`)
+tri.reg_ev_count$EV.Registrations <- as.integer(tri.reg_ev_count$EV.Registrations)
+# write.csv2(tri.reg_ev_count, file = "./processed/triState.Ev.Reg.Count.csv")
+
+
+ggplot(tri.reg_ev_count, aes(x = State, y = EV.Registrations/10e4))+
+  geom_col(fill = c("firebrick", "steelblue", "gold")) +
+  labs(title = "Electrich Vehicle Registrations per State", ) +
+  ylab("Electric Vehicle Registration per 10,000") +
+  xlab("States") +
+  theme_bw()
+
+```
+
+```{r}
+# Study is focused on NY, NJ and CT
+tri.state <- c('NJ', 'NY', 'CT') 
+eastCoast <- raw_afs %>% filter(State == tri.state)
+
+# We identify columns that should be converted into a factor
+factorCols <- c('State', 'Status Code', 'Access Code', 'Facility Type')
+
+eastCoast[factorCols] <- lapply(eastCoast[factorCols], factor)
+eastCoast$`Fuel Type Code` <- factor(eastCoast$`Fuel Type Code`, 
+                                     labels = c("Biodisel", 
+                                                "Compressed Natural Gas",
+                                                "Ethanol E85", "Electric", 
+                                                "Hydrogen", "Propane")
+                                     )
+# Base Tri-state levels
+triState.base <- eastCoast %>% 
+  select(`Fuel Type Code`, City, State, ZIP, `Status Code`, 
+         `Access Code`, `EV Network`, `Facility Type`) %>% 
+  filter(!is.na(`Facility Type`))
+# write.csv2(triState.base, file = './processed/triStateBase.csv')
+
+# Mosaic
+afs_per_state <- xtabs(formula = ~ `Fuel Type Code` + State, data = triState.base)
+afs_state.df <- as.data.frame(afs_per_state)
+ggplot(data = afs_state.df) +
+  geom_mosaic(aes(weight=Freq, x=product(Fuel.Type.Code, State), fill=Fuel.Type.Code, na.rm = TRUE)) +
+  theme_bw() +
+  labs(y = "Alternative Fuel Stations", y = "States", title = "Alternative Fuel Stations Per State (NJ, NY, CT)") +
+  guides(fill = guide_legend(title="Alternative Fuel Types", reverse = TRUE))
+
+
+```
+
+```{r}
+# EV focus in New York
+ny.ev.reg.per.county.raw <- ny.ev.reg.per.county.raw %>% 
+  select(County, Registration.Class) %>% 
+  rename(Registration.Count = Registration.Class)
+
+ny.ev.reg.per.county.raw$Registration.Count <- replaceCommas(ny.ev.reg.per.county.raw$Registration.Count)
+# write.csv2(ny.ev.reg.per.county.raw, file = './processed/new_york_ev_reg.clean.csv')
+
+ny.zip.county <- ny.zip.county %>% 
+  select(County.Name, ZIP.Code)
+
+ny.zip.county$County.Name <- toupper(ny.zip.county$County.Name)
+ny.zip.county$ZIP.Code <- factor(ny.zip.county$ZIP.Code)
+```
+
+```{r}
+zip_extract <- ny.median.income.zip %>% 
+  filter(grepl("ZCTA5", Label)) %>% 
+  select(Label) %>% 
+  trimws(which = "both") %>% 
+  str_remove_all(pattern = "ZCTA5 ") %>% 
+  str_split(", ") %>% 
+  unlist() %>% 
+  str_remove_all("[c, \"\", (, )]")
+
+median_salary <- ny.median.income.zip[ny.median.income.zip$Label == "Median income (dollars)",]
+
+median_salary <- apply(median_salary[,-1], MARGIN = 2, replaceCommas) %>% 
+  bind_cols(ZIP.Code = zip_extract) %>% 
+  relocate(ZIP.Code) %>% 
+  rename(No.Earner = `No earners`, 
+         Single.Earner = `1 earner`,
+         Double.Earners = `2 earners`,
+         Multiple.Earners = `3 or more earners`)
+
+median_salary <- median_salary[complete.cases(median_salary), ]
+
+# write.csv(median_salary, "./processed/new_york_median_sal.csv")
+```
+
+```{r}
+ny.base <- triState.base %>% 
+  rename(ZIP.Code = ZIP) %>% 
+  filter(State == 'NY') %>% 
+  left_join(x = ., y = ny.zip.county, by = 'ZIP.Code') %>% 
+  left_join(x = ., y = median_salary, by = 'ZIP.Code') %>% 
+  filter(`Fuel Type Code` == 'Electric' & `Access Code` == 'public') %>% 
+  select(City, State, ZIP.Code, County.Name,
+         No.Earner, Single.Earner, Double.Earners, Multiple.Earners) %>%
+  rename(County = County.Name) %>% 
+  mutate(ZIP.Code = factor(ZIP.Code), County = factor(County))
+
+# write.csv(ny.base, "./processed/new_york_ev_median.csv")
+
+ny.station.summary <- ny.base %>% 
+  group_by(County) %>% 
+  left_join(x = ., y = ny.ev.reg.per.county.raw, by = 'County') %>% 
+  select(ZIP.Code, County, No.Earner, Single.Earner, Double.Earners, 
+         Multiple.Earners, Registration.Count) %>% 
+  mutate(Total.Station.Per.County = n()) %>% 
+  mutate(Availability = (Total.Station.Per.County/Registration.Count)) %>% 
+  mutate(Avg.Median.NoEarner = mean(No.Earner, na.rm = TRUE),
+         Avg.Median.SingleEarner = mean(Single.Earner, na.rm = TRUE),
+         Avg.Median.DoubleEarners = mean(Double.Earners, na.rm = TRUE),
+         Avg.Median.MultipleEarners = mean(Multiple.Earners, na.rm = TRUE)
+         ) %>% 
+  mutate(HasAvailability = as.factor(ifelse(Availability > 0.01 & Single.Earner > Avg.Median.SingleEarner, 1, 0)))
+
+# write.csv(ny.station.summary, "./processed/new_york_ev_station_summary.csv")
+
+# ny.station.summary <- ny.station.summary[complete.cases(ny.station.summary),]
+```
+
+```{r}
+ny.station.summary %>% 
+  ggplot(aes(Availability))+
+  geom_histogram(fill = "forestgreen", color = "grey", bins = 30, na.rm = TRUE) +
+  geom_density(color = "orangered") +
+  labs(y = "Frequency", title = "Availability of Alternative Fuel Stations in New York") +
+  theme_bw()
+```
+
+
+```{r}
+ny.station.summary %>% 
+  ggplot(aes(HasAvailability)) +
+  geom_bar(fill = c('orangered','lightblue'), na.rm = TRUE) +
+  labs(x = "Has Enough Available Fuel Stations", y = "Frequency", title = "Available Fuel Stations based on Average Median Salary") +
+  scale_x_discrete(labels = c("No", "Yes"), na.translate = FALSE) +
+  theme_bw()
+```
+
+```{r}
+ny_cor_data <- ny.station.summary
+ny_cor_data$County <- as.numeric(factor(ny_cor_data$County))
+ny_cor_data$ZIP.Code <- as.numeric(factor(ny_cor_data$ZIP.Code))
+ny_cor_data$HasAvailability <- as.numeric(ny_cor_data$HasAvailability)
+cor.ny <- cor(ny_cor_data, use = "complete.obs")
+
+cor.mtest(cor.ny, method = "pearson")$p
+```
+
+
+```{r}
+p.mat <- cor_pmat(cor.ny)
+ggcorrplot(corr = cor.ny, method = "square", p.mat=p.mat, hc.order = TRUE, outline.color = "white", 
+           type = "lower", title = "Correlation Plot of New York EV and Fuel Stations")
+```
+

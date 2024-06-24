@@ -1,0 +1,183 @@
+---
+title: 'Assignment #1'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+## Chapter 2 - Large Worlds and Small Worlds
+
+The objectives of this problem set is to work with the conceptual mechanics of Bayesian data analysis.  The target of inference in Bayesian inference is a posterior probability distribution. Posterior probabilities state the relative numbers of ways each conjectured cause of the data could have produced the data. These relative numbers indicate plausibilities of the different conjectures. These plausibilities are updated in light of observations through Bayesian updating.  
+
+Place each answer inside the code chunk (grey box).  The code chunks should contain a text response or a code that completes/answers the question or activity requested. Make sure to include plots if the question requests them.  
+
+Finally, upon completion, name your final output `.html` file as: `YourName_ANLY505-Year-Semester.html` and publish the assignment to your R Pubs account and submit the link to Canvas. Each question is worth 5 points
+
+## Questions
+
+**2-1.** Suppose you have a deck with only three cards. Each card has two sides, and each side is either
+black or white. One card has two black sides. The second card has one black and one white side. The
+third card has two white sides. Now suppose all three cards are placed in a bag and shuffled. Someone
+reaches into the bag and pulls out a card and places it flat on a table. A black side is shown facing up,
+but you don’t know the color of the side facing down. Show that the probability that the other side is
+also black is 2/3. Use the counting method (Section 2 of the chapter) to approach this problem. This
+means counting up the ways that each card could produce the observed data (a black side facing up
+on the table).
+
+*From the question we know that the deck contains only three cards*
+
+- *Card 1 - W/W*
+- *Card 2 - B/W*
+- *Card 3 - B/B*
+
+*Knowing this, we have three possible outcome for the card is flipped.*
+
+```{r 2-1}
+# If the flipped card is white then no possibilities it is black
+cd1 <- 0
+
+# If the card is black then 
+cd2 <- 1
+
+# If the card is black on both sides
+cd3 <- 2
+
+# Where we can assume that each pull of the card is independent of the other
+# and each will have a single prior
+priors <- c(1, 1, 1)
+
+# We can then find the likelihood of these outcomes occurring
+likelihood  <- c(cd1, cd2, cd3)
+
+# The posterior for a flipped card to be black
+posterior <- likelihood * priors
+posterior <- posterior/sum(posterior)
+```
+
+*The probability of a flipped card being black is __`r round(posterior[3], 2)` or 2/3__.*
+
+**2-2.** Now suppose there are four cards: B/B, B/W, W/W, and another B/B. Again suppose a card is
+drawn from the bag and a black side appears face up. Again calculate the probability that the other
+side is black.
+
+*Expanding on the previous example we have an additional card. This now increases the possible outcomes when drawing a card from the bag.*
+
+- *Card 1 - B/B*
+- *Card 2 - B/W*
+- *Card 3 - W/W*
+- *Card 4 - B/B*
+
+```{r 2-2}
+cd1 <- 0
+cc2 <- 1
+cd3 <- 2
+cd4 <- 2
+
+# As with the previous question we can assume each draw is independent and does
+# not have a prior before it
+priors <- c(1, 1, 1, 1)
+
+# Our outcomes as follows
+likelihood <- c(cd1, cd2, cd3, cd4)
+
+# And the posterior will be as follows
+posterior <- likelihood * priors
+posterior <- posterior/sum(posterior)
+
+# Because we have two outcomes that are essentially the same we can add them together
+black_total <- posterior[3] + posterior[4]
+```
+
+*The probability of the flipped card being black is __`r black_total` or 4/5__.*
+
+**2-3.** Imagine that black ink is heavy, and so cards with black sides are heavier than cards with white
+sides. As a result, it’s less likely that a card with black sides is pulled from the bag. So again assume
+there are three cards: B/B, B/W, and W/W. After experimenting a number of times, you conclude that
+for every way to pull the B/B card from the bag, there are 2 ways to pull the B/W card and 3 ways to
+pull the W/W card. Again suppose that a card is pulled and a black side appears face up. Show that
+the probability the other side is black is now 0.5. Use the counting method, as before.
+
+*In this question, we have a count of priors present that will influence the likelihood of the next card draw*
+
+- *Card 1 - B/B with prior 1*
+- *Card 2 - B/W with prior 2*
+- *Card 3 - W/W with prior 3*
+
+```{r 2-3}
+cd1 <- 2 # If there is one way to pull then there is two ways to pull B/B
+cc2 <- 1 # If there two ways to pull B/W then there is one way to pull B/B
+cd3 <- 0 # If there are three ways to pull W/W then there can be no B/B
+
+likelihood <- c(cd1, cd2, cd3)
+
+priors <- c(1, 2, 3)
+
+posterior <- likelihood * priors
+posterior <- posterior/sum(posterior)
+```
+
+*The probability of the flipped card being black is __`r posterior[1]` or 1/2__.*
+
+**2-4.** Assume again the original card problem, with a single card showing a black side face up. Before
+looking at the other side, we draw another card from the bag and lay it face up on the table. The face
+that is shown on the new card is white. Show that the probability that the first card, the one showing
+a black side, has black on its other side is now 0.75. Use the counting method, if you can. Hint: Treat
+this like the sequence of globe tosses, counting all the ways to see each observation, for each possible
+first card.
+
+*We know that for the first card being black with have 3 cards to pull with 2 different outcomes in total that might occur. However, when we draw the second card without replacing we have reduced the possible choices to 2 and having one outcome.*
+
+```{r 2-4}
+cardDraw1 <- 2 * 3
+cardDraw2 <- 1 * 2
+
+likelihood <- c(cardDraw1, cardDraw2)
+
+priors <- c(1, 1)
+posterior <- likelihood * priors
+posterior <- posterior/sum(posterior)
+```
+
+*The probability of the first card being black/black is __`r round(posterior[1], 2)`__.*
+
+**2-5.** Suppose there are two species of panda bear. Both are equally common in the wild and live
+in the same places. They look exactly alike and eat the same food, and there is yet no genetic assay
+capable of telling them apart. They differ however in their family sizes. Species A gives birth to twins
+10% of the time, otherwise birthing a single infant. Species B births twins 20% of the time, otherwise
+birthing singleton infants. Assume these numbers are known with certainty, from many years of field
+research.
+Now suppose you are managing a captive panda breeding program. You have a new female panda
+of unknown species, and she has just given birth to twins. What is the probability that her next birth
+will also be twins?
+
+*For the two species of panda we are given the ratio of both:*
+
+- *Sp(A) - 0.1 chance that a twin is born*
+- *Sp(B) - 0.2 chance that a twin is born*
+
+```{r 2-5}
+SpA <- 0.1
+SpB <- 0.2
+
+likelihood <- c(SpA, SpB)
+
+priors <- c(1,1)
+
+posterior <- likelihood * priors
+posterior <- posterior/sum(posterior)
+```
+
+*The likelihood of Species A giving birth to twins is __`r round(posterior[1],2)`__ while for Species B the likelihood is __`r round(posterior[2],2)`__.*
+
+*To find the probability of the panda giving birth to twins (taking into account that the species is unknown) we can do the following:*
+
+```{r}
+# Find the total for by posterior * likelihood of twins being born
+total_likelihood <- (posterior[1] * likelihood[1]) + (posterior[2] * likelihood[2])
+```
+
+*The total likelihood that a twin panda is born is __`r round(total_likelihood, 2)`__.*

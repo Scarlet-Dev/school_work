@@ -1,0 +1,136 @@
+---
+title: "ANLY 510 Assignment 3"
+author: "Akane Simpson"
+date: "11/27/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Research Question
+
+The data represents a study of older participants that tests their fine motor skill performance. The participants are split into three age groups. From there participants are given a random task and are graded on their performance.
+
+
+## Hypothesis
+
+  From the research question we can establish a null and alternative hypothesis in regards to the motor skille performance. 
+  
+  - $H_O$: There is no significant difference in motor skills between the three groups. 
+  - $H_A$: There is at least one bage group that has a signifcant difference in motor skills performance.
+  
+## Assumptions
+
+  From the research we were able to identify three variable
+  
+  - Performance Score
+  - Condition
+  - Age (*group “1”:60-69, “2”: 70-79 and “3”: above 80)
+  
+### Specification Table
+  
+  |__Variable__   |__# Levels__   |
+  |:---------:|:---------:|
+  |Age        |3          |
+  |Condition  |3          |
+  
+Where out independent variable (IV) is Age while our dependent variable (DV) is Performance Score. This leaves our blocker (Blocker) as Condition. We can then make a table to represent the relationship between the IV and Blocker. 
+  
+  |Block/IV   |Test 1     |Test 2     | Test 3      |
+  |:---------:|:---------:|:---------:|:-----------:|
+  |Age 1      |10         |10         |10           |
+  |Age 2      |10         |10         |10           |
+  |Age 3      |9          |10         |10           |
+
+## R Code
+
+```{r rcode, eval=FALSE}
+library(moments)
+library(readxl)
+library(pgirmess)
+library(pastecs)
+library(compute.es)
+
+master = readxl::read_xlsx('./Week 3/Lab3.xlsx')
+data = master
+
+summary(data)
+
+# Skewness
+plot(density(data$Performance_score))
+agostino.test(data$Performance_score)
+# Skewness assumption is not broken
+
+# Kurtosis
+anscombe.test(data$Performance_score)
+# Anscombe test shows high kurtosis of data. 
+# Kurtosis assumption is broken with p < 0.05
+
+# Normality
+qqnorm(data$Performance_score)
+shapiro.test(data$Performance_score)
+# Shapiro test and Q-Q plot shows points points are mostly normal. p-value < 0,05
+# Normality assumption is not broken.
+
+# Independence
+model.lm = lm(Performance_score ~ Age , data = data)
+model.res = resid(model.lm)
+plot(data$Performance_score, model.res,)
+abline(0,0)
+# Plot shows values being evenly distributed above and below abline. 
+# Independence assumption is not broken
+
+# Equal Variance
+bartlett.test(data$Performance_score, data$Age)
+tapply(data$Performance_score, data$Age, var)
+# Results show there is no major variance across the levels and p > 0,05. Equal Variance
+# assumption is not broken
+
+# Additivity of Interaction
+model = aov(Performance_score ~ factor(Age) * factor(Condition), data = data)
+summary(model.aov)
+# The Interaction model 1 shows that there is a  significant interaction between
+# Condition and Age. Residuals show that Condition and its connection does explain
+# some of the error in the model.
+
+# ANOVA Analysis
+model.aov2 = aov(Performance_score ~ factor(Age) + factor(Condition), data = data)
+summary(model.aov2)
+
+model.aov3 = aov(Performance_score ~ factor(Age), data = data)
+summary(model.aov3)
+
+anova(model.aov2, model.aov3)
+# Comparing the model with the blocker versus without the blocker shows that
+# condition (blocker) does have an effect on the model's residuals and explains
+# some of the variance.
+
+
+# Post Hoc Analysis
+pairwise.t.test(data$Performance_score, data$Age, p.adjust.method = "bon", 
+                paired = FALSE)
+# Bonferroni test shows there is a significant difference between each age groups
+# in terns of motor skills performance.
+
+# Effect Size
+by(data$Performance_score, data$Age, stat.desc)
+
+# Groups 2 and 1
+mes(27.94, 32.45, 4.35, 3.59, 31, 29)
+
+# Group 3 and 1
+mes(22.14, 32.45, 3.98, 3.59, 29, 29)
+
+# Group 3 and 2
+mes(22.14, 27.94, 3.98, 3.59, 29, 31)
+
+# Using mes we compare the difference between age groups to find the effect size
+```
+
+## APA Summary
+
+Observations from the study were analyzed by conducting a one-way analysis of variance using R version 4.1.1. First, all assumptions are met and there is no adjustment made. Results suggest that the performance level, after controlling for condition, between age groups (as 1, 2 or 3) of the participants (F(2, 86) = 48.48, p < .001).  
+  
+Continue the discussion with specifically which groups differed, a Bonferroni test was established. The result suggested that there is a significant difference between age groups 1 and 2 (p < .001) and age groups 1 and 3 (p < .001), in terms of the perfromance levels. There was also a significant difference between age groups 2 and 3. The effect was large between methods 1 & 2, and 1 & 3, Cohen’s D = 1.13 and 2.72. The effect size for groups 2 and 3 was Cohen's D = 1.53.  

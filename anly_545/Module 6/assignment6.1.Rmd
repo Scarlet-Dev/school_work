@@ -1,0 +1,58 @@
+---
+title: "Module 6 - Logistic Regression 1"
+author: "Akane Simpson"
+date: '2022-05-26'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(lmtest)
+library(ggplot2)
+```
+
+```{r, results='hide'}
+data <- read.csv('./data.6.csv')
+data$Improved <- as.numeric(data$Improved)
+colnames(data)[3] <- "Height"
+colnames(data)[4] <- "Weight"
+
+height.glm <- glm(Improved ~ Height, data = data, family = "binomial" )
+weight.glm <- glm(Improved ~ Weight, data = data, family = "binomial")
+
+# H0: Height is not a significant factor of Improved
+# HA: Height is a significant factor of Improved
+coeftest(height.glm)
+2 * pnorm(-1.6758, lower.tail = F)
+exp(coef(height.glm))
+
+# H0: Weight is not a significant factor of Improved
+# HA: Weight is a significant factor of Improved
+coeftest(weight.glm)
+2 * pnorm(5.9726, lower.tail = F)
+exp(coef(weight.glm))
+```
+
+## Analysis(Fact)
+
+1. Height ___[is not]___ a significant predictor of Improved (β = ___0.0131701___, p = ___0.09377___).
+2. For each cm in Height, the Odds of the subject’s symptoms ___[degrade]___ by ___1.3___ %.
+3. Weight ___[is]___ a significant predictor of Improved (β = ___0.060209___, p = ___2.335019e-09___).
+4. For each kg in Weight, the Odds of the subject’s symptoms ___[improve]___ by ___6.2___ %.
+
+## Tables and Figures
+
+```{r}
+ggplot(data = data, aes(y = Improved, x = Height)) +
+  geom_point(position = position_jitter(height = 0.02, width = 0)) +
+  stat_smooth(formula = y ~ x, method = "glm", method.args = list(family="binomial"),
+              alpha = 0.1, fill = 'blue', fullrange = TRUE) +
+  theme_bw()
+
+ggplot(data = data, aes(y = Improved, x = Weight)) +
+  geom_point(position = position_jitter(height = 0.02, width = 0)) +
+  stat_smooth(formula = y ~ x, method = "glm", method.args = list(family="binomial"),
+              alpha = 0.1, fill = 'blue', fullrange = TRUE) +
+  theme_bw()
+```
+

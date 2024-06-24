@@ -1,0 +1,55 @@
+---
+title: "Module 5 - Mosaic Displays 2"
+author: "Akane Simpson"
+date: '2022-05-19'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(vcd)
+library(MASS)
+```
+
+```{r}
+data <- read.csv('./data.5.csv')
+clean <- data[,-1]
+
+clean$Treatment <- factor(data$Treatment, labels = c("Placebo", "Treated"))
+clean$Improved <- factor(data$Improved, labels = c("No", "Yes"))
+clean$Gender <- factor(data$Gender, labels = c("Female", "Male"))
+clean$Race <- factor(data$Race)
+
+t1 <- xtabs(~ Treatment + Improved, data = clean)
+t2 <- xtabs(~ Treatment + Improved + Gender, data = clean)
+t3 <- xtabs(~ Treatment + Improved + Race, data = clean)
+```
+
+```{r}
+# H0: There is no impact on the joint association between Treatment and Improved Condition to Gender
+# H1: There is an impact on the joint association between Treatment and Improved Condition to Gender
+t2_chi <- loglm(~ Treatment * Improved + Gender, t2)
+
+# H0: There is no impact on the joint association between Treatment and Improved Condition to Race
+# H1: There is an impact on the joint association between Treatment and Improved Condition to Race
+t3_chi <- loglm(~ Treatment * Improved + Race, t3)
+```
+
+## Analysis
+1. There ___[is no]___ evidence to suggest that Gender impacts this joint association (χ2 = ___7.147712___, p = ___0.06733577___).
+2. ___[Conversely]___, there ___[is no]___ evidence to suggest that Race impacts this joint association (χ2 = ___7.981844___, p = ___0.5359769___).
+
+## Tables and Figures
+
+```{r}
+mosaic(t1, shade = TRUE, labeling = labeling_values)
+```
+
+```{r}
+mosaic(t2, shade = TRUE, expected = ~Treatment * Improved + Gender, labeling = labeling_values, rot_labels = c(0,0,0,90))
+```
+
+```{r}
+mosaic(t3, shade = TRUE, expected = ~ Treatment * Improved + Race, labeling = labeling_values, rot_labels = c(0,0,0,90))
+```
+

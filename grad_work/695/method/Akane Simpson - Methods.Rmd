@@ -1,0 +1,137 @@
+---
+title             : "Internet Culture – Incel Language Detection within in-groups on the internet"
+shorttitle        : "Incel Language Detection"
+
+author: 
+  - name          : "Akane Simpson"
+    affiliation   : "1"
+    corresponding : yes    # Define only one corresponding author
+    address       : "326 Market St, Harrisburg, PA 17101"
+    email         : "asimpson@my.harrisburgu.edu"
+    role:         # Contributorship roles (e.g., CRediT, https://casrai.org/credit/)
+      - "Conceptualization"
+      - "Writing - Original Draft Preparation"
+      - "Writing - Review & Editing"
+
+affiliation:
+  - id            : "1"
+    institution   : "Harrisburg University of Science & Technology"
+
+authornote: 
+  
+keywords          : "keywords"
+wordcount         : "X"
+
+
+floatsintext      : no
+linenumbers       : no
+draft             : no
+mask              : no
+
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+
+header-includes:
+  - |
+    \makeatletter
+    \renewcommand{\paragraph}{@startsection{paragraph}{4}{\parindent}%
+      {0\baselineskip @plus 0.2ex @minus 0.2ex}%
+      {-1em}%
+      {\normalfont\normalsize\bfseries\typesectitle}}
+    
+    \renewcommand{\subparagraph}[1]{@startsection{subparagraph}{5}{1em}%
+      {0\baselineskip @plus 0.2ex @minus 0.2ex}%
+      {-\z@\relax}%
+      {\normalfont\normalsize\bfseries\itshape\hspace{\parindent}{#1}\textit{\addperi}}{\relax}}
+    \makeatother
+
+csl               : "`r system.file('rmd', 'apa7.csl', package = 'papaja')`"
+documentclass     : "apa7"
+output            : papaja::apa6_pdf
+bibliography: r-references.bib
+---
+
+```{r setup, include = FALSE}
+library("papaja")
+r_refs("./r-references.bib")
+```
+
+```{r analysis-preferences}
+# Seed for random number generation
+set.seed(42)
+knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
+```
+
+In this section we will develop a quantitative analysis user comments and posts made on the social media platform, Reddit, and perform a semantics and sentimental analysis on users comments posts using natural language processing techniques, model generation and time period observation. This research should be considered a casual comparative research where we study radicalization through observing a change in user commenting behavior within a period of time (from first post to latest) while weighed against other factors. This study will be performed exclusively online during October 2022 til June 2023.
+
+## Participants
+
+In the demography of incels compiled by @moskalenko2022, most of the participants are white males with most having only a high school education. These incels have previously been bullied and suffer some form of mental health illness. Many of these incels are regular users of social media and often post problematic content to these platforms. Although not stated by @moskalenko2022 we will assume that most of these participants are between 18 to 35 years old although we have should some outliers during the collection process. Additionally, we will allow other races, gender We assert that incels will indulge in computer specific hobbies or interest due to their interactions mostly online [@incelwikihobby2021]. These hobbies and interests would include gaming, technology and gaming news and popular culture. These interests will help us when searching for participants on the social media platform, Reddit.
+
+Although we have a general characteristics of the possible participants the data that we will retrieve from Reddit is mostly anonymous. Instead we will use the hobbies of incels as a starting point in our search. Therefore, our search will mine user data on popular video game and computer related subreddits. The search results will then be extracted for user information from searched subreddits and focused on key features such as username, posts, comments and subreddits these participants interact with. The users are mostly anonymous with only their username being available. The study will maintain this anonymity during the analysis and manipulation of the data by assigning randomly generated short hashes as identifiers.
+
+## Procedure
+
+### The Reddit API
+
+The study will first identify, measure and observe interactions by users on Reddit. Reddit has a application programming interface (API) that developers our scientist can use to query the platform for data. Anyone can use this API by creating an account and gaining an access token that identifies your queries to the API. The Reddit API allows several actions but in this study we will focus on the ability to filter, search and sort for subreddits. The API also allows searched for specific users using their screen names and and advanced queries to learn more about a users previous subreddit submissions.
+
+The Reddit API allows us to retrieve data from different subreddits and provide deeper incites into communities of interest. We shall retrieve a maximum of 200 unique comments and assess them for incel content. If the comment or posts does contain incel themes, topics or language we shall select that user to perform an deep dive through their users profile. The secondary search will mine available posts made by the selected participants. From there we will preform out analysis to establish a timeline from the first comment made by the selected user till the most recent comment. It should be expected that users who have an extended post history are the most desired and are more legitimate
+
+### Extraction Tools
+
+The Reddit API tools will work will with our quantitative study, but, we will use a programming tool called PRAW (Python Reddit API Wrapper) to provide a development algorithms for repeated experiments. PRAW is a wrapper tool that wraps the functions in the API into a code friendly format. Using @praw along with data science tool-set like @scikit-learn , text and sentiment analysis from 'NLTK' and visualizing the results using @seaborn.
+
+### Limitations
+
+Reddit catalog data that its users posts into subreddits, some are public facing and allow other users to follow. Other times, a user may post their content directly to their user pages subreddit. Users also create private subreddits and require an invitation by other group members or the pages moderator to have access. These different access methods present some challenges to reading data on a user or subreddit.
+
+Searching subreddits for possible incel activity will take some time. This requires several rounds of searches using the API wrapper, sampling subreddit posts and verifying that the selected user has a long enough history on the website and post often enough to generate a timeline. Additionally, this could also reveal users that have similar perspectives as incels but do not follow the same worldview. These users cold be studied in a different paper.
+
+## Measures
+
+There are several measures that will be required in this study. Some measures can be found by extracting the desired feature from the two data sources. Other measures will need to be calculated by using external resources and previous work done by @Torregrosa2021, @schmitz2022quantifying, @doosje2016, @gothard2021exploring in creating criteria that addresses critical features that will be examined in this study. This criteria will be used to measure several elements in common incel language and attempt to identify words, phrases and themes that may be present within these comments and text.
+
+### Measuring 'Hate Levels'
+
+'Hate levels' as described by @pelzer2021toxic are a proposed measured value of hate that may be found through text analysis of extremist content. @pelzer2021toxic We will combine the sentiment value of the user's comments or posts, weight the subreddit the comment or posts were made in (if the subreddit has ties to incel content or topics
+
+### Measuring Sentiment
+
+Sentiment analysis is the identification and classification of opinions express in a binary value of either positive, negative values. By assessing the words used in text we can assign a 1 to -1 range based on the word meaning. An example of this is in @axelsson2021languages where they describe the language of incels as toxic. We will use those words processed by out data munging and compare them to a dictionary similar to @van2021grievance. We would expect a binary value from this to signify whether the Reddit comment/post contains the same words or phrases found in the dictionary -@van2021grievance.
+
+### Measuring Time
+
+In this measure we will use the data provided to outline a timeline of a user from their first encounter of incel-related content till their most recent encounter. We hope to find several users that fit this measure to create an average and median time variable it takes a user to become fully radicalized by the incel idea [@schmitz2022quantifying].
+
+This time measure will be validated based on the delta from the start of observation till the most recent post. We will further assess the time measure by correlating it with our sentiment and 'hate levels' measures. If there is a strong positive correlation between these three measures we can assume that these are good classification features.
+
+## Analysis
+
+Analyzing the data will also take up a considerable amount of time. Our intended process will involve model training and testing. The model will be built using multiple model building techniques to create a classification model that will perform two tasks, predict if a selected comment is incel inspired and calculate the cumulative 'hate levels' from key data features. Before we begin the analysis we must ensure the data integrity. We shall review the data and perform the following steps:
+
+1.  Review the raw data and select features that are related to our research goals.
+
+2.  We shall clean the data by removing incomplete cases, check and remove outliers in the data and normalize (scale, center, normalize) the continuous variables in the dataset.
+
+3.  We shall create three training/validation sets manipulated using different levels of feature manipulation: only normalization, feature selection using correlation and feature engineering using Principal Component Analysis (PCA). The training data will be cross validated before model training can begin.
+
+4.  Finally, we shall create models using the training sets and compare the model results.
+
+5.  We select the model that has the overall results and provide it with more data to create further predictions from additional user data.
+
+Completing the appropriate procedures in cleaning, processing and extracting relevant features for the study is an important step of the analysis. If the data contains issues or misrepresentation then the subsequent model and their results will be incorrect. The steps above will create a cleaned dataset that will not affect future model development. At the end our analysis should answer our model expectations:
+
+-   The classification model should accurately predict with over a 80% accuracy if a comment was made by an incel
+
+-   The data will have features that correlate with the sentiment score and the 'hate levels' score from the data.
+
+-   The model, when given a time range is able to sample comments/posts within the range and attempt to predict the 'hate levels' and sentiment value of the sampled comments/posts.
+
+\newpage
+
+# References
+
+::: {#refs custom-style="Bibliography"}
+:::

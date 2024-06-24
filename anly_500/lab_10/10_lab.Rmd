@@ -1,0 +1,350 @@
+---
+title: "ANOVA"
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(moments)
+library(car)
+library(ez)
+library(MOTE)
+library(pwr)
+library(ggplot2)
+
+cleanup <- theme(panel.grid.major = element_blank(), 
+                panel.grid.minor = element_blank(), 
+                panel.background = element_blank(), 
+                axis.line.x = element_line(color = "black"),
+                axis.line.y = element_line(color = "black"),
+                legend.key = element_rect(fill = "white"),
+                text = element_text(size = 15))
+
+master <- read.csv('./10_data.csv')
+```
+
+*Abstract*: How do university training and subsequent practical experience affect expertise in data science? To answer this question we developed methods to assess data science knowledge and the competence to formulate answers, construct code to problem solve, and create reports of outcomes. In the cross-sectional study, undergraduate students, trainees in a certified postgraduate data science curriculum, and data scientists with more than 10 years of experience were tested (100 in total: 20 each of novice, intermediate, and advanced university students, postgraduate trainees, and experienced data scientists). We discuss the results against the background of expertise research and the training of data scientist. Important factors for the continuing professional development of data scientists are proposed.
+
+# Dataset:
+
+    -	Participant type: novice students, intermediate students, advanced university students, postgraduate trainees, and experienced data scientists
+    -	Competence: an average score of data science knowledge and competence based on a knowledge test and short case studies.
+
+APA write ups should include means, standard deviation/error (or a figure), t-values, p-values, effect size, and a brief description of what happened in plain English.
+
+```{r starting}
+str(master)
+table(master$participant_type)
+
+master$participant_type <- factor(master$participant_type, 
+                                  levels = c('advanced','experienced','intermediate',
+                                             'novice','postgraduate'),
+                                  labels = c(1,2,3,4,5))
+summary(master)
+
+```
+
+# Data screening:
+
+Assume the data is accurate and that there is no missing data.
+
+## Outliers
+    a.	Examine the dataset for outliers using z-scores with a criterion of 3.00 as p < .001.
+    b.	Why do we have to use z-scores? 
+    c.	How many outliers did you have?
+    d.	Exclude all outliers.
+    
+```{r outliers}
+outliers <- master
+
+# Data set only has 1 continuous variable so we use z-score method
+# competence.mean = mean(master$competence)
+# competence.sd = sd(master$competence)
+# competence.len = length(master$competence)
+# zscore = (outliers$competence - competence.mean)/competence.sd
+
+zscore = scale(outliers$competence)
+total_out = sum(abs(zscore) > 3.00)
+noout = subset(outliers, zscore < 3.00)
+```
+
+# Assumptions
+
+## Setup
+```{r}
+random = rchisq(nrow(noout), 7)
+fake = lm(random ~ ., noout)
+
+fitvals = scale(fake$fitted.values)
+standardized = rstudent(fake)
+```
+
+## Normality: 
+
+  a.	Include a picture that you would use to assess multivariate normality. 
+
+```{r normality visual, echo=FALSE}
+hist(standardized, breaks = 15)
+```
+
+```{r normality, echo=FALSE}
+skew = round(skewness(noout$competence),2)
+kur = round(kurtosis(noout$competence) - 3,2)
+```
+  b.	Do you think you've met the assumption for normality?
+
+The histogram showed that the data set is very right tailed skewed ($skew$ = `r skew`) with one high peak ($kurtosis$ = `r kur`). The bars on the histogram are also not normality distributed so we can assume that the data does not have Normality.
+
+
+## Linearity:
+
+  a.	Include a picture that you would use to assess linearity.
+
+```{r linearity, echo=FALSE}
+{qqnorm(standardized)
+  abline(0,1)}
+```
+    
+  b.	Do you think you've met the assumption for linearity?
+  From the scatter plot we can see that a majority of the points do not fall on the theoretical line. We can assume that the data set does not assume linearity.
+
+## Homogeneity/Homoscedasticity: 
+
+  a.	Include a picture that you would use to assess homogeneity and homoscedasticity.
+
+```{r homogs, echo=FALSE}
+{plot(standardized,fitvals)
+  abline(0,0)
+  abline(v=0)}
+```
+    
+  b.	Include the output from Levene's test.
+
+```{r, echo=FALSE}
+levTest = leveneTest(competence ~ participant_type, data = noout)
+print(levTest)
+```
+  
+  c.	Do you think you've met the assumption for homogeneity? (Talk about both components here). 
+  - From the graph we can see that the values are not evenly distributed across the axis. We can also infer from the Levene's test ($p$ = `r round(levTest[[3]][1],2)`) that the p-value is not significant ($p < 0.05$). Based on these observations we can assume it is unlikely that the data meets homogeneity.
+  
+  d.	Do you think you've met the assumption for homoscedasticity?
+  - Based on how the points fall it is unlikely that the data set has homoscedasticity.
+
+# Hypothesis Testing:
+
+Run the ANOVA test.
+
+  a.	Include the output from the ANOVA test.
+    
+```{r anova, warning=FALSE}
+# For the ezANOVA we require that each case has an id attached
+noout$partno <- 1:nrow(noout) 
+noout$partno <- factor(noout$partno)
+options(scipen = 20)
+ez <- ezANOVA(data = noout, 
+        dv = competence,
+        wid = partno, 
+        between = participant_type,
+        detailed = T,
+        type = 3)
+ez$ANOVA;
+```
+   b.	Was the omnibus ANOVA test significant?
+  - The omnibus ANOVA test was significant.
+
+```{r anova-oneway, warning=FALSE}
+oneway.test(competence ~ participant_type, data = noout)
+```
+
+Calculate the following effect sizes:
+
+    a.	$\eta^2$
+
+```{r effect eta}
+eta = round(ez[["ANOVA"]][["ges"]][2],2)
+```
+Effect Size: $\eta$ = `r eta`.
+
+    b.	$\omega^2$
+
+```{r effect omega}
+
+dfm = ez[["ANOVA"]][["DFn"]][2]
+dfe = ez[["ANOVA"]][["DFd"]][2]
+f = round(ez[["ANOVA"]][["F"]][2],2)
+n = nrow(noout)
+
+eff <- omega.F(dfm = dfm,
+               dfe = dfe,
+               Fvalue = f,
+               n = n,
+               a = 0.05)
+omega = round(eff$omega,2)
+```
+Effect Size: $\omega$ =  `r omega`
+
+
+Given the $\eta^2$ effect size, how many participants would you have needed to find a significant effect? 
+
+If you get an error: "Error in uniroot(function(n) eval(p.body) - power, c(2 + 0.0000000001, : f() values at end points not of opposite sign":
+
+    - This message implies that the sample size is so large that the estimation of sample size has bottomed out. You should assume sample size required n = 2 *per group*. Mathematically, ANOVA has to have two people per group - although, that's a bad idea for sample size planning due to assumptions of parametric tests.
+    - Leave in your code, but comment it out so the document will knit. 
+
+```{r power}
+# k represents number of groups in participant_types
+# k = 5
+# f_eta = sqrt(eta / (1-eta))
+# pwr <- pwr.anova.test(k = 5, 
+#                       n = NULL, 
+#                       f = f_eta, 
+#                       sig.level = 0.05, 
+#                       power = 0.80)
+
+```
+
+Run a post hoc independent t-test with no correction and a Bonferroni correction. Remember, for a real analysis, you would only run one type of post hoc. This question should show you how each post hoc corrects for type 1 error by changing the p-values.  
+
+```{r posthoc}
+# None
+post1 = pairwise.t.test(noout$competence,
+                noout$participant_type,
+                p.adjust.method = "none",
+                paired = F,
+                var.equal = F)
+
+post2 = pairwise.t.test(noout$competence,
+                noout$participant_type,
+                p.adjust.method = "bonferroni",
+                paired = F,
+                var.equal = F)
+```
+
+Include the effect sizes for only Advanced Students vs Post Graduate Trainees and Intermediate students versus Experienced Data Scientists. You are only doing a couple of these to save time. 
+
+```{r effectsize}
+M <- tapply(noout$competence, noout$participant_type, mean)
+N <- tapply(noout$competence, noout$participant_type, length)
+SD <- tapply(noout$competence, noout$participant_type, sd)
+
+# Using the order of table we should be able to select by index
+table(noout$participant_type)
+# 1 = Advanced
+# 2 = Experienced
+# 3 = Intermediate
+# 4 = Novice
+# 5 = Postgraduate
+
+# First effect - Advanced vs Postgraduate (1 vs 5)
+effsize1 = d.ind.t(M[1], M[5], SD[1], SD[5], N[1], N[5], a = 0.05)
+
+# First effect - Intermediate vs Experienced (3 vs 2)
+effsize2 = d.ind.t(M[3], M[2], SD[3], SD[3], N[3], N[2], a = 0.05)
+```
+
+Create a table of the post hoc and effect size values:
+
+```{r table, results='asis', echo=FALSE}
+tableprint = matrix(NA, nrow = 3, ncol = 3)
+
+##row 1
+##fill in where it says NA with the values for the right comparison
+##column 2 = Advanced Students vs Post Graduate Trainees
+##column 3 = Intermediate students versus Experienced Data Scientists. 
+tableprint[1, ] = c("No correction p", post1$p.value[4], post1$p.value[6])
+
+##row 2
+tableprint[2, ] = c("Bonferroni p", post2$p.value[4], post2$p.value[6])
+
+##row 3
+tableprint[3, ] = c("d value", effsize1$d, effsize2$d)
+
+#don't change this
+kable(tableprint, 
+      digits = 3,
+      col.names = c("Type of Post Hoc", 
+                    "Advanced Students vs Post Graduate Trainees", 
+                    "Intermediate students versus Experienced Data Scientists"))
+```
+
+Run a trend analysis.
+
+```{r trend, echo=FALSE}
+k = 5
+noout$participant_type2 = noout$participant_type
+contrasts(noout$participant_type2) <- contr.poly(k)
+
+output <- aov(competence ~ participant_type2,data = noout)
+summary.lm(output)
+```
+  a.	Is there a significant trend?
+  - Yes, there is a trend.
+  
+  b.	Which type?
+  - The trend is identified as linear.
+    
+```{r, echo=FALSE}
+experienceline <- ggplot(noout, aes(participant_type, competence))
+
+experienceline +
+  stat_summary(fun = mean, geom = 'point') +
+  stat_summary(fun = mean, geom = 'line', aes(group = 1)) +
+  coord_cartesian(ylim = c(0,100)) +
+  labs(x = 'Participant Groups', y = 'Average Competence Scores', title = 'Line Chart of Competency Score\n between Participant Groups') +
+  stat_summary(fun.data = mean_cl_normal,geom = 'errorbar', width = 0.2, position = 'dodge') +
+  scale_x_discrete(labels = c('Advanced','Experienced', 'Intermediate','Novice','Postgraduate')) +
+  cleanup
+```
+
+
+Make a bar chart of the results from this study:
+
+    a.	X axis labels and group labels
+    b.	Y axis label
+    c.	Y axis length – the scale runs 0-100. You can add coord_cartesian(ylim = c(0,100)) to control y axis length to your graph. 
+    d.	Error bars
+    e.	Ordering of groups: Use the factor command to put groups into the appropriate order. 
+  
+You use the factor command to reorder the levels by only using the levels command and putting them in the order you want. Remember, the levels have to be spelled correctly or it will delete them. 
+
+```{r graph, echo=FALSE}
+bar.chart <- ggplot(noout, aes(participant_type, competence))
+
+bar.chart+
+  stat_summary(fun = mean, geom = 'bar') +
+  stat_summary(fun.data = mean_cl_normal, geom = 'errorbar', 
+               position = 'dodge', width = 0.2) +
+  coord_cartesian(ylim = c(0,100)) +
+  labs(x = 'Participant Groups', y = 'Average Competence Scores', title = 'Bar Chart of Competency Score\n between Participant Groups') +
+  scale_x_discrete(labels = c('Advanced','Experienced', 'Intermediate','Novice','Postgraduate')) +
+  cleanup
+```
+
+Write up a results section outlining the results from this study.  Use two decimal places for statistics (except when relevant for p-values). Be sure to include the following:
+
+  a.	A reference to the figure you created (the bar chart) – this reference allows you to not have to list every single mean and standard deviation.
+  
+  - From the bar chart above we can see that we have groups that have a significantly higher and lower competence levels in  the study. Participants who are advanced (data scientists with advanced degrees) are the most competent of the group while novices (undergraduate studying in a data science program) are the least competent of the group. Postgraduates tend to have the same or slightly less competency scores as advanced individuals. The experienced group also had better competency scores than the intermediate group. This could translate to individuals with more education tend to score better competency scores than those with less education.
+  
+  b.	Very brief description of study and variables.
+  
+  - From the abstract we can infer that the study was done to measure the competency scores of various groups in the field of data science based on experience levels. The variables from the study are 'participant_type' which represents the different experience levels. The 'competency' variable represented the scores for an individual in each group.
+  
+  c.	The omnibus test value and if it was significant. 
+  
+  - The omnibus test value was significant. $F(4,95)$ = `r round(ez[[1]][[6]][2],4)`, $p < 0.05$.
+  
+  d.	The two post hoc comparisons listed above describing what happened in the study and their relevant statistics. You would only list the post hoc correction values. 
+
+  - In this analysis we performed two post hoc tests, one with no corrections and the other with Bon. We performed these test on the data sets and took notice on two comparisons, Advanced vs Postgraduate and Intermediate vs Experience. For the first comparison we had a p-value change from `r round(post1[['p.value']][4],4)` to `r round(post1[['p.value']][6], 4)` which is a difference of `r round(post1[['p.value']][6] - post1[['p.value']][4],4)`. The second comparison had a p-value change from `r round(post2[['p.value']][4],4)` to `r round(post2[['p.value']][6], 4)` which is a difference of `r round(post2[['p.value']][6] - post2[['p.value']][4],4)`. Both show that there is a need to reject the null hypothesis of there being no difference between the two psot hoc test for each comparison.
+  
+  e.	Effect sizes for all statistics.
+  
+  - Effect Size for $\eta = $ `r eta`
+  - Effect Size for $\omega$ =  `r omega`
+  - Effect Size for Advanced vs Postgraduate = `r round(effsize1$d,2)`
+  - Effect Size for Intermediate vs Experienced = `r round(effsize2$d,2)`

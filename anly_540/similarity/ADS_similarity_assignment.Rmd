@@ -1,0 +1,139 @@
+---
+title: 'Similarity Assignment'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Python Application
+
+Import the `completed_clean_data` and convert to a `pandas` dataframe. This dataset includes a list of scientific research articles that all appeared when I searched for "databases", "corpus", and "linguistic norms". 
+
+```{r}
+library(reticulate)
+```
+
+
+```{python}
+##python chunk
+import pandas as pd
+df = pd.read_csv('./completed_clean_data.csv')
+```
+
+Load all the libraries you will need for the Python section. You can also put in the functions for normalizing the text and calculating the top 5 related objects.
+
+```{python}
+##python chunk
+import string
+import nltk
+import re
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics import pairwise_distances
+
+import pyLDAvis
+import pyLDAvis.gensim_models  # don't skip this
+import matplotlib.pyplot as plt
+
+import gensim
+import gensim.corpora as corpora
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer 
+ps = PorterStemmer()
+
+def normalize_document(doc):
+    # lower case and remove special characters\whitespaces
+    doc = re.sub(r'[^a-zA-Z0-9\s]', '', doc, re.I|re.A)
+    doc = doc.lower()
+    doc = doc.strip()
+    #remove punctuation
+    doc = doc.translate(str.maketrans('', '', string.punctuation))
+    # tokenize document
+    tokens = nltk.word_tokenize(doc)
+    # filter stopwords out of document
+    filtered_tokens = [token for token in tokens if token not in stop_words]
+    # re-create document from filtered tokens
+    doc = ' '.join(filtered_tokens)
+    return doc
+
+def book_recommender(book_title, books, doc_sims):
+    # find book id
+    book_idx = np.where(books == book_title)[0][0]
+    # get book similarities
+    book_similarities = doc_sims.iloc[book_idx].values
+    # get top 5 similar book IDs
+    similar_book_idxs = np.argsort(-book_similarities)[1:6]
+    # get top 5 books
+    similar_books = books[similar_book_idxs]
+    # return the top 5 books
+    return similar_books
+
+```
+
+Use the normalizing text function to clean up the corpus - specifically, focus on the `ABSTRACT` column as our text to match.
+
+```{python}
+##python chunk
+stop_words = nltk.corpus.stopwords.words('english')
+
+normalize_corpus = np.vectorize(normalize_document)
+
+norm_corpus = normalize_corpus(list(df['ABSTRACT']))
+len(norm_corpus)
+```
+
+Calculate the cosine similarity between the abstracts of the attached documents. 
+
+```{python}
+##python chunk
+tf = TfidfVectorizer(ngram_range=(1, 2), min_df=2)
+tfidf_matrix = tf.fit_transform(norm_corpus)
+tfidf_matrix.shape
+
+doc_sim = cosine_similarity(tfidf_matrix)
+doc_sim_df = pd.DataFrame(doc_sim)
+```
+
+Using our moving recommender - pick a single article (under `TITLE`) and recommend five other related articles.
+
+```{python}
+##python chunk
+book_recommender("senses and texts", df['TITLE'].values, doc_sim_df)
+```
+
+## Make a Change to the Model
+
+Using the methods shown in class, make one change to the model to see how it impacts the outcome. Pick one of the following: use a different similarity metric, use phrases instead of single words (e.g. change ngram_range), use only more frequent terms (e.g. change min_df), or lemmatize the words in the processing step.
+
+```{python}
+# Change the similarity metric (Manhattan)
+doc_sim_m = pairwise_distances(tfidf_matrix, metric = 'manhattan')
+doc_sim_df_m = pd.DataFrame(doc_sim_m)
+
+book_recommender("senses and texts", df['TITLE'].values, doc_sim_df_m)
+
+# Or change the phrases
+tf = TfidfVectorizer(ngram_range=(2, 6), min_df=6)
+tfidf_matrix = tf.fit_transform(norm_corpus)
+
+doc_sim = cosine_similarity(tfidf_matrix)
+doc_sim_df = pd.DataFrame(doc_sim)
+
+book_recommender("senses and texts", df['TITLE'].values, doc_sim_df)
+```
+
+
+## Discussion Questions
+
+- Did you get the articles expected? Do the suggestions make sense? Did your change to the model improve the recommendations? What else might improve the recommendation algorithm? 
+
+ - ANSWER: In the initial book recommendations call we see 3 out of 5 recommended books were related to the abstract of 'senses and texts'. When the similarity metric was changed to Manhattan the book recommendations changed drastically. This changed returned new recommendations, 4 out of 5 that had some similarity based on tokenization and word matching. In the second model change we increased the TFID Vectorizer to include longer word phrases. The book recommender produced the same recommendations as the initial one. Overall, changing the similarity metric produced new recommendations for this model while only changing the phrase make a difference. To further improve the model combining the two methods could produce better recommendations or by adding lemmatization to the process.
+
+- Describe a set of texts and research question that interests you that could be explored using this method. Basically, what is a potential application of this method to another area of research?
+
+  - ANSWER: One set of texts that could benefit from a similarity analysis and subsequent recommender system is building material for home projects. The research question that could be posed is what common tools and materials are used in several home projects. The data provided could entail how other home builders started and completed their own projects and using the recommender system provide other projects similar in scope/nature and material commonly used together based on the project or product description. This research could be beneficial for users who are interested in starting their own home projects and need assistance on deciding a project that is popular, suits their needs and easy to start and complete using high quality and affordable materials.

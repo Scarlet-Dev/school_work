@@ -1,0 +1,60 @@
+---
+title: "Module 3 - Fitting Discrete Distributions 1"
+author: "Akane Simpson"
+date: '2022-04-10'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(kableExtra)
+```
+
+
+```{r Data Wrangling}
+base <- read.csv('./data.3.csv')
+dice_groups <- ncol(base)
+colNames <- names(base)
+maxVals <- max(base, na.rm = TRUE)
+nobs <- nrow(base)
+```
+
+## Analysis (Intuition)
+
+1. The dice roll is believed to be [fair] because _every side of the dice has a 1/8 chance of being rolled_.
+2. The distribution observed in the plot appears to be a _binomial_ distribution because _it is right skewed_.
+
+## Tables and Figures
+
+Find the maximum dice size: __`r maxVals`__
+
+Find the group size: __`r dice_groups`__
+
+
+Considering a roll of 1/2/3 to be a success, find the number of successes per grouping.
+
+```{r}
+success_fail_freq <- array(0:dice_groups+1)
+
+for(row in 1:nobs){
+  count <- 0
+  
+  for (val in base[row, ]) {
+     if(val == 1 | val == 2 | val == 3){
+       count <- count + 1
+     }
+  }
+  success_fail_freq[count+1] = success_fail_freq[count+1] + 1
+}
+
+freq.matrix <- matrix(data = success_fail_freq, nrow = 1, byrow = TRUE, dimnames = list(c("Frequency"), c(0:dice_groups)))
+
+table <- kable(freq.matrix, caption = "Number of successes when rolling a 8 sided dice in groups of 9. ") %>%
+  kable_styling()
+```
+
+`r table`
+
+```{r}
+plot(c(0:dice_groups), freq.matrix[1,], xlab = "Number of Successes", ylab = "Frequency", main = "Number of successes when rolling a 8 sided dice in groups of 9")
+```

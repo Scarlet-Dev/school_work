@@ -1,0 +1,96 @@
+---
+title: "Lecture_8_Assignment_8"
+author: "Akane Simpson"
+date: "9/23/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+load("atheism.RData")
+```
+
+# Inference for categorical data
+
+In August of 2012, news outlets ranging from the Washington Post to the Huffington Post ran a story about the rise of atheism in America. The source for the story was a poll that asked people, "Irrespective of whether you attend a place of worship or not, would you say you are a religious person, not a religious person or a convinced atheist?" 
+This type of question, which asks people to classify themselves in one way or another, is common in polling and generates categorical data. In this lab we take a look at the atheism survey and explore what's at play when making inference about population proportions using categorical data.
+
+The question of atheism was asked by WIN-Gallup International in a similar survey that was conducted in 2005. (We assume here that sample sizes have remained the same.) Table 4 on page 13 of the report summarizes survey results from 2005 and 2012 for 39 countries.
+
+1. Answer the following two questions using the inference function. As always, write out the hypotheses for any tests you conduct and outline the status of the conditions for inference.
+
+  a. Is there convincing evidence that Spain has seen a change in its atheism index between 2005 and 2012?
+
+  Hint: Create a new data set for respondents from Spain. Form confidence intervals for the true proportion of athiests in both years, and determine whether they overlap.
+```{r}
+# Ho: There is no difference in the atheist population in Spain since 2005 to 2012 (Ho: p.1 == p.2 )
+# Ha: There is a difference in the atheist population in Spain since 2005 to 2012 (Ha: p.1 != p.2)
+spain05 <- subset(atheism, nationality == "Spain" & year == 2005)
+spain12 <- subset(atheism, nationality == "Spain" & year == 2012)
+
+# Next, prove that the data set fulfills the proportion law
+table(spain05$response)
+table(spain12$response)
+
+inference(spain05$response, success = "atheist", type = "ci", method = "theoretical", est = "proportion")
+
+inference(spain12$response, success = "atheist", type = "ci", method = "theoretical", est = "proportion")
+```
+
+
+```{r, echo=FALSE}
+print("The confidence interval for Spain in 2005 was between (0.083:0.1177) while the 
+confidence interval in 2012 was between (0.0734:0.1065). The two intervals overlap and shows no significant change in the atheist population between the years. Therefore we cannot reject the null hypothesis.")
+```
+
+ 
+  b. Is there convincing evidence that the United States has seen a change in its atheism index between 2005 and 2012?
+```{r}
+# Ho: There is no difference in the atheist population in US since 2005 to 2012 (Ho: p.1 == p.2 )
+# Ha: There is a difference in the atheist population in US since 2005 to 2012 (Ha: p.1 != p.2)
+
+us05 <- subset(atheism, nationality == "United States" & year == 2005)
+us12 <- subset(atheism, nationality == "United States" & year == 2012)
+
+table(us05$response)
+table(us12$response)
+
+inference(us05$response, success = "atheist", type = "ci", method = "theoretical", est = "proportion")
+
+inference(us12$response, success = "atheist", type = "ci", method = "theoretical", est = "proportion")
+```
+```{r, echo=FALSE}
+print("The confidence interval for the US in 2005 is (0.0038:0.0161) while the interval in 2012 is (0.0364:0.0634). The intervals do not overlap which means there was a change in the atheist population between 2005 and 2012. We can therefore reject the null hypothesis.")
+```
+
+ 
+2. If in fact there has been no change in the atheism index in the countries listed in Table 4, in how many of those countries would you expect to detect a change (at a significance level of 0.05) simply by chance?
+  
+# Hint: Look in the textbook index under Type 1 error.
+```{r}
+possible_change = 0.05 * 39
+sprintf("A Type 1 error is where we reject the null hypothesis incorrectly. In this case, the atheist population would not have changed much or at all in these countries. Using a confidence interval of 95%% we can be sure the 5%% of the listed countries would have a statistical significant change in their index. An estimated %2.f countries would have a change in their atheist proportions.", possible_change)
+```
+
+  3. Suppose you're hired by the local government to estimate the proportion of residents that attend a religious service on a weekly basis. According to the guidelines, the estimate must have a margin of error no greater than 1% with 95% confidence. You have no idea what to expect for \(p\). How many people would you have to sample to ensure that you are within the guidelines?
+```{r}
+ # To find the sample size we also need to find the SE and before we can calculate for n
+me = 0.01
+z = 1.96
+
+# where me = z * se
+se = me/z
+
+# We can then find p using the scenario that over 50% of the sample will or have attended
+# 
+p = 0.5
+# me = z * se
+# me >= z * sqrt(p * (1 - p)/n)
+# we can then convert this to make n the subject
+# sample size => n = z^2 * p * (1 - p)/me^2
+
+n = z^2 * p*(1-p)/me^2
+
+paste("Possible sample size: ", n)
+```
+

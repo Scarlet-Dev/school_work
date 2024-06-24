@@ -1,0 +1,231 @@
+---
+title: 'Latent Semantic Analysis'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+## Load the libraries + functions
+
+Load all the libraries or functions that you will use to for the rest of the assignment. It is helpful to define your libraries and functions at the top of a report, so that others can know what they need for the report to compile correctly.
+
+```{r libaries}
+##r chunk
+library(gutenbergr)
+library(stringr)
+library(dplyr)
+library(tidyr)
+library(tm)
+library(lsa)
+library(LSAfun)
+```
+
+Load the Python libraries or functions that you will use for that section. 
+
+```{python}
+##python chunk
+import matplotlib 
+import matplotlib.pyplot as plt
+matplotlib.use('pdf')
+
+import string
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer 
+ps = PorterStemmer()
+
+from gensim import corpora
+from gensim.models import LsiModel
+from gensim.models.coherencemodel import CoherenceModel
+from pprint import pprint
+```
+
+## The Data
+
+You will want to use some books from Project Gutenberg to perform a Latent Semantic Analysis. The code to pick the books has been provided for you, so all you would need to do is *change out* the titles. Pick 2 titles from the list below. You can also try other titles not on the list, but they may not work. Check out other book titles at https://www.gutenberg.org/. 
+
+- Book Titles:
+    - Crime and Punishment
+    - Pride and Prejudice
+    - A Christmas Carol
+    - The War of the Worlds
+    - Twenty Thousand Leagues under the Sea
+    - The Iliad
+    - The Art of War
+    - An Inquiry into the Nature and Causes of the Wealth of Nations
+    - Democracy in America — Volume 1
+    - Dream Psychology: Psychoanalysis for Beginners
+    - Talks To Teachers On Psychology; And To Students On Some Of Life\'s Ideals
+
+
+```{r project_g}
+##r chunk
+##pick 2 titles from project gutenberg, put in quotes and separate with commas
+## DO NOT use the titles used in class, using those will be a 10 point deduction
+titles = c("Dracula", "Frankenstein; Or, The Modern Prometheus")
+
+##read in those books
+books = gutenberg_works(title %in% titles) %>%
+  gutenberg_download(meta_fields = "title", mirror = "http://mirrors.xmission.com/gutenberg/") %>% 
+  mutate(document = row_number())
+
+create_chapters = books %>% 
+  group_by(title) %>%
+  mutate(chapter = cumsum(str_detect(text, regex("^chapter", ignore_case = TRUE)))) %>% 
+  ungroup() %>%
+  filter(chapter > 0) %>%
+  unite(document, title, chapter) 
+
+by_chapter = create_chapters %>% 
+  group_by(document) %>% 
+  summarise(text=paste(text,collapse=' '))
+
+```
+
+The `by_chapter` data.frame can be used to create a corpus with `VectorSource` by using the `text` column. 
+
+## Create the Vector Space
+
+Use `tm_map` to clean up the text. 
+
+```{r}
+##r chunk 
+book_text_vec <- as.vector(by_chapter$text)
+books_corpus <- Corpus(VectorSource(by_chapter$text))
+books_corpus <- tm_map(books_corpus, tolower)
+books_corpus <- tm_map(books_corpus, removePunctuation)
+books_corpus <- tm_map(books_corpus, function(x) removeWords(x, stopwords("english")))
+books_corpus <- tm_map(books_corpus, function(x) removeWords(x, "chapter"))
+books_mat <- as.matrix(TermDocumentMatrix(books_corpus))
+```
+
+Create a latent semantic analysis model in R. 
+
+```{r}
+##r chunk
+books_weight <- lw_logtf(books_mat) * gw_idf(books_mat)
+
+books_lsa <- lsa(books_weight)
+books_lsa <- as.textmatrix(books_lsa)
+```
+
+Explore the vector space:
+  - Include at least one graphic of the vector space that interests you. 
+  - Include at least 2 set of statistics for your model: coherence, cosine, neighbors, etc. 
+
+```{r}
+cosine(books_lsa[,1], books_lsa[,23])
+```
+```{r}
+cosine(books_lsa[,3], books_lsa[,26])
+```
+
+```{r}
+##r chunk
+plot_neighbors("death",
+               n = 20,
+               tvectors = books_lsa,
+               method = "PCA",
+               cex = 1.0,
+               dims = 2)
+```
+
+```{r}
+words_of_misery <- c("murder", "grim", "fear", "painful", "oppressive", 
+                     "nightmare", "howl", "helplessly", "greyness", "gloom",
+                     "ghostly", "evil", "afraid", "death")
+plot_wordlist(words_of_misery, 
+              method = "PCA",
+              dims = 2,
+              tvectors = books_lsa)
+```
+
+
+Transfer the `by_chapter` to Python and convert it to a list for processing. 
+
+```{python}
+##python chunk
+raw_text = list(r.book_text_vec)
+```
+
+Process the text using Python. 
+
+```{python}
+##python chunk
+processed_txt = []
+
+for text in raw_text:
+    text = text.lower()
+    text = text.translate(str.maketrans('', '', string.punctuation))
+    text = nltk.word_tokenize(text)
+    text = [word for word in text if word not in stopwords.words('english')]
+    text = [ps.stem(word = word) for word in text]
+    processed_txt.append(text)
+    
+```
+
+Create the dictionary and term document matrix in Python.
+
+```{python}
+##python chunk
+dictionary = corpora.Dictionary(processed_txt)
+
+doc_term_matrix = [dictionary.doc2bow(doc) for doc in processed_txt]
+```
+
+Find the most likely number of dimensions using the coherence functions from the lecture. 
+
+```{python}
+##python chunk
+def compute_coherence_values(dictionary, doc_term_matrix, clean_text, start = 2, stop = 100, step = 2):
+    coherence_values = []
+    model_list = []
+    for num_topics in range(start, stop, step):
+        # generate LSA model
+        model = LsiModel(doc_term_matrix, num_topics=num_topics, id2word = dictionary)  # train model
+        model_list.append(model)
+        coherencemodel = CoherenceModel(model=model, corpus = doc_term_matrix, texts=clean_text, dictionary=dictionary, coherence='u_mass')
+        coherence_values.append(coherencemodel.get_coherence())
+    return model_list, coherence_values
+
+def plot_graph(dictionary, doc_term_matrix, clean_text, start, stop, step):
+    model_list, coherence_values = compute_coherence_values(dictionary, doc_term_matrix, clean_text, start, stop, step)
+    # Show graph
+    x = range(start, stop, step)
+    plt.plot(x, coherence_values)
+    plt.xlabel("Number of Topics")
+    plt.ylabel("Coherence score")
+    plt.legend(("coherence_values"), loc='best')
+    plt.show()
+    
+start,stop,step=2,12,1
+plot_graph(dictionary, doc_term_matrix, processed_txt, start, stop, step)
+```
+
+Create the LSA model in Python with the optimal number of dimensions from the previous step.
+
+```{python}
+##python chunk
+number_of_topics = 8
+words = 15
+lsamodel = LsiModel(doc_term_matrix, num_topics=number_of_topics, id2word = dictionary)
+
+topics = lsamodel.show_topics(num_topics=number_of_topics, num_words = words, formatted=True)
+pprint(topics)
+```
+
+## Interpretation
+
+Interpret your space - can you see the differences between books/novels? Explain the results from your analysis (at least a 1 paragraph-length explanation). 
+  
+- ANSWER: We examined two books for this assignment, Frankenstein and Dracula, since they both fall under the Gothic genre. The goal of this analysis was to find any similarities between the two books, where themes of death and morality. From the simple statistics we see the first chapters of both books had a cosine of 0.827, meaning the two chapters are similar in Gothic style writing. This was less so for the third chapters as they started to deviate from each other (0.773). In the neighbors plot we see that the selected word 'death' had close neighbors of 'live', 'voice' and 'remain'. This could be indicative to how both authors view death, possibly in different context or comparisons. Further, the word list plot we see that many of our selected words are clustered together and share similar negative scores. However, when analyzing the 8 topics it becomes less clear on what each major topic could be. At 8 topics we see that the coherence score is below zero (-0.5). The number of words in each topic also range in score but they do not have an apparent connection in this analysis.
+
+## Discussion Question
+
+Thinking of your current job or prospective career, propose a research project to address a problem or question in your industry that would use latent semantic analysis. Spend time thinking about this and write roughly a paragraph describing the problem/question and how you would address it with text data and latent semantic analysis.
+
+- ANSWER: One research project that could benefit from this techniques is comparing the writing techniques of students on a general topic. The research question that we could pose is how the student's essays compare on a general topic through the use of vector space analysis. We can examine how well students are able to articulate ideas and themes based on a general prompt or question. This analysis is important as it can help educators track student's ability to perform free form writing, current vocabulary level and critical thinking skills.

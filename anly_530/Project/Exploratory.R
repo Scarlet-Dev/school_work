@@ -1,0 +1,5 @@
+library(tidyverse)
+afv <- read_csv("./processed/v2/pa_AFV_cleaned_v2.csv")
+registered.ev <- read_csv("./processed/v2/pa_registered_ev_v2.csv")
+salary.earnes.station <- read_csv("./processed/v2/pa_salary_earners_station_availability_v2.csv")
+median.salary.county <- read_csv("./processed/v2/pa_median_salary_county_zip_v2.csv")

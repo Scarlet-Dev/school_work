@@ -1,0 +1,72 @@
+---
+title: 'Similarity Assignment'
+author: "STUDENT NAME"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Python Application
+
+Import the `completed_clean_data` and convert to a `pandas` dataframe. This dataset includes a list of scientific research articles that all appeared when I searched for "databases", "corpus", and "linguistic norms". 
+
+```{r}
+
+```
+
+
+```{python}
+##python chunk
+
+```
+
+Load all the libraries you will need for the Python section. You can also put in the functions for normalizing the text and calculating the top 5 related objects.
+
+```{python}
+##python chunk
+
+```
+
+Use the normalizing text function to clean up the corpus - specifically, focus on the `ABSTRACT` column as our text to match.
+
+```{python}
+##python chunk
+
+```
+
+Calculate the cosine similarity between the abstracts of the attached documents. 
+
+```{python}
+##python chunk
+
+```
+
+Using our moving recommender - pick a single article (under `TITLE`) and recommend five other related articles.
+
+```{python}
+##python chunk
+
+```
+
+## Make a Change to the Model
+
+Using the methods shown in class, make one change to the model to see how it impacts the outcome. Pick one of the following: use a different similarity metric, use phrases instead of single words (e.g. change ngram_range), use only more frequent terms (e.g. change min_df), or lemmatize the words in the processing step.
+
+```{python}
+##python chunk
+
+```
+
+
+## Discussion Questions
+
+- Did you get the articles expected? Do the suggestions make sense? Did your change to the model improve the recommendations? What else might improve the recommendation algorithm? 
+
+ - ANSWER: 
+
+- Describe a set of texts and research question that interests you that could be explored using this method. Basically, what is a potential application of this method to another area of research?
+
+  - ANSWER: 

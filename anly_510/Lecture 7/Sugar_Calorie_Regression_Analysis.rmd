@@ -1,0 +1,123 @@
+---
+title: "ANLY 510 Assignment 6"
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r include = FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+### Answer the following questions
+
+#### 1. When should we use regression instead of ANOVA
+
+ANOVA analysis is used when comparing the difference oe means between two or more groups. THis helps us to find variables that may affect the outcome of a group. Regression Analysis is used when we need to predict the future outcome.
+
+#### 2. Please explain the relationship between SS~total~, SS~regression~, and SS~error~
+
+SS~Total~ is the total variance in a regression model. SS~Regression~ refers to the explained variance in a model while SS~Error~ refers to unexplained variance in the model. When creating a model we use SS~Total~ to indicate how well or model performs. The total, which is the difference between the predicted value and the mean of the variable, is made up from the addition of the SS~Regression~ and the SS~Error~. SS~Regression~ is the difference between the predicted value of a model and the mean and the SS~Error~ is our error term or the difference between the observed value and the predicted value.
+
+#### Regression Analysis
+
+Use the table below to create a Regression Analysis including
+
+- **Research question,**
+- **Hypothesis,**
+- **Code used and**
+- **Analysis Summary**
+
+
+|Sugar|Calories|
+|:---:|:------:|
+|5|20|
+|8|30|
+|9|60|
+|10|70|
+|15|100|
+|18|95|
+|14|70|
+|17|83|
+|20|103|
+|22|112|
+|24|130|
+|26|80|
+|30|95|
+|30|130|
+|32|112|
+
+##### Research Question
+
+The data represents the caloric value of various amounts of sugar measured in grams. From reviewing the table we can see the measured sugar levels have a varying degree of calories.
+
+##### Hypothesis
+
+For this experiment we can create a null and alternative hypothesis based on sugar to calorie levels.
+
+- *H*~0~: There is no relationship between sugar levels and calories.
+- *H*~A~: There is a relationship between higher sugar measurements and calories levels.
+
+##### Assumption
+
+From the research question we can identify two variables
+
+- Sugar (IV)
+- Calories (DV)
+
+##### R Code
+
+```
+
+library(car)
+
+sugar <- c(5, 8, 9, 10, 15, 18, 14, 17, 20, 22, 24, 26, 30, 30, 32)
+calories <- c(20, 30, 60, 70, 100, 95, 70, 83, 103, 112, 130, 80, 95, 130, 112)
+
+# IV - sugar
+# DV - calories
+
+nutrition <- data.frame(sugar, calories)
+
+summary(nutrition)
+
+# Type of Variable Assumption
+str(nutrition)
+
+# Multicollinearity
+# Only one predictor so assumption pass
+
+# Check if there is a relationship between the variables
+cor(nutrition)
+
+plot(density(nutrition$sugar))
+plot(density(nutrition$calorie))
+
+qqnorm(nutrition$calorie)
+qqnorm(nutrition$sugar)
+
+# Model Creation
+nutrition_lm <- lm(sugar ~ calorie, nutrition)
+nutrition_resd <- resid(nutrition_lm)
+
+plot(nutrition$calories, nutrition_resd, ylab="Residuals", xlab="Calories")
+abline(0,0)
+
+# Best Fit
+plot(nutrition$calories, nutrition$sugar)
+lines(nutrition$calories, predict(nutrition_lm), col="red")
+
+# Heteroscedascity Assumption
+scatterplot(nutrition$calories, nutrition$sugar)
+
+# Normality
+shapiro.test(nutrition_lm$residuals)
+
+# Regression Analysis
+summary(nutrition_lm)
+
+```
+
+#### APA Summary
+
+A simple regression model was conducted to predict participants’ money-saving motivation, based on their annul income. All the regression assumptions were met, and no further adjustment made. A significant regression equation was found (F (1, 13) = 25.13, p < .001), with an R2 of .66. Only the calorie predictor (p < .001) were statistically significant. The result suggested that, calorie levels predicts and shows that for each sugar level increase there is a 21.643 percent increase in calories.

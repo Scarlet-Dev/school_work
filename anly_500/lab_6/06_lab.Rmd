@@ -1,0 +1,248 @@
+---
+title: "Data Screening"
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+lab6 <- read.csv('./06_data.csv')
+
+library(dplyr)
+library(mice)
+library(corrplot)
+library(moments)
+library(VIM, quietly = T)
+```
+
+# Dataset:
+
+600 employees participated in a company-wide experiment to test if an educational program would be effective at increasing employee satisfaction. Half of the employees were assigned to be in the control group, while the other half were assigned to be in the experimental group. The experimental group was the only group that received the educational intervention. All groups were given an employee satisfaction scale at time one to measure their initial levels of satisfaction. The same scale was then used half way through the program and at the end of the program. The goal of the experiment was to assess satisfaction to see if it increased across the measurements during the program as compared to a control group. 
+
+## Variables: 
+
+    a) Gender (1 = male, 2 = female)
+    b) Group (1 = control group, 2 = experimental group)
+    c) 3 satisfaction scores, ranging from 2-100 points. Decimals are possible! The control group was measured at the same three time points, but did not take part in the educational program. 
+        i) Before the program
+        ii)	Half way through the program 
+        iii) After the program 
+
+```{r starting}
+str(lab6)
+dim(lab6)
+colnames(lab6)
+
+head(lab6)
+tail(lab6)
+
+```
+
+# Data screening:
+
+## Accuracy:
+
+    a)	Include output and indicate how the data are not accurate.
+    b)	Include output to show how you fixed the accuracy errors, and describe what you did.
+    
+```{r accuracy #Categorical}
+accuracy_check <- lab6
+
+# For Categorical
+    # Gender
+    accuracy_check$Gender <- (factor(accuracy_check$Gender, levels = c(1,2), labels = c("Male", "Female")))
+    
+    # Group
+    accuracy_check$Group <- (factor(lab6$Group, levels = c(1, 2), labels = c("Control", "Experimental")))
+    
+    apply(accuracy_check[, c("Gender", "Group")], 2, table)
+```
+In the categorial variables the data types used is discrete numbers. There were no typos but some missing values for 'Gender' and 'Group'.
+
+```{r accuracy #Continuous Variables}
+#Continuous
+    summary(accuracy_check[,-c(1,2)])
+```
+The satisfaction score can only be between 2 - 100 and columns 'Begin' and 'After' have values that surpass this range. We must look for the values that are over this range and replace/remove the value.
+
+```{r}
+    # Removing values that surpass the 100.00 threshold.
+    accuracy_check$Begin[ accuracy_check$Begin > 100.01] <- NA
+    accuracy_check$After[ accuracy_check$After > 100.01] <- NA
+    
+    summary(accuracy_check[, -c(1,2)]);
+    
+    #Mean
+    apply(accuracy_check[,3:5], 2, mean, na.rm = T)
+    
+    #SD
+    apply(accuracy_check[,3:5], 2, sd, na.rm = T)
+```
+After removing the inaccurate values from the data set we have more NA\'s but a better mean and standard deviation than before.
+
+## Missing data:
+
+    a)	Include output that shows you have missing data.
+    b)	Include output and a description that shows what you did with the missing data.
+        i)	Replace all participant data if they have less than or equal to 20% of missing data by row. 
+        ii)	You can leave out the other participants (i.e. you do not have to create allrows). 
+        
+```{r missing}
+missing_data <- accuracy_check
+# a
+    summary(missing_data)
+    apply(missing_data, 2, function(x) { sum(is.na(x)) })
+```
+
+```{r}
+aggr(missing_data, numbers = T)
+```
+From the aggregate table we can see most of the missing values are those that we introduced in our previous accuracy check. To fix this we can now replace those missing row values with 'mice'.
+
+```{r}
+    permiss <- function(x){ sum(is.na(x))/length(x) * 100}
+    missing <- apply(missing_data, 1, permiss);
+    
+    table(factor(missing, levels = c(0, 20, 40, 60), labels = c("0%", "20%","40%","60%")))
+```
+The missing table shows the amount of rows that have a missing value. 
+
+```{r}
+    replace_rows <- subset(missing_data, missing <= 20)
+    noreplace_rows <- subset(missing_data, missing >= 20)
+    
+    apply(replace_rows, 2, permiss)
+```
+```{r}
+    replace_columns <- replace_rows[, -c(1,2)]
+    noreplace_columns <- replace_rows[, c(1,2)]
+```
+
+We can then remove columns that are categorical like 'Gender' and 'Group' and keep the others related to the expectation score. After seperating we can then use mice on the 'replace_columns' table.
+
+```{r}
+    temp_no_miss <- mice(replace_columns)
+    nomiss <- complete(temp_no_miss, 1)
+    
+    allcolumns <- cbind(noreplace_columns, nomiss) #Then combine the mice iteration to columns
+
+    summary(allcolumns)
+    dim(allcolumns)
+```
+
+
+
+## Outliers:
+
+    a)	Include a summary of your mahal scores that are greater than the cutoff.
+    b)	What are the df for your Mahalanobis cutoff?
+    c)	What is the cut off score for your Mahalanobis measure?
+    d)	How many outliers did you have?
+    e)	Delete all outliers. 
+    
+```{r outliers}
+outliers <- allcolumns
+str(outliers)
+# a
+    mahal_summ <- mahalanobis(outliers[,3:5], 
+                              center = colMeans(outliers[,3:5], na.rm = T),
+                              cov = cov(outliers[,3:5], use ="pairwise.complete.obs"))
+    cutoff <- qchisq(1-0.001, ncol(outliers[,3:5]))
+    summary(mahal_summ < cutoff)
+```
+```{r ,echo=FALSE}
+# b
+    ncol(outliers[,3:5])
+    sprintf("The degree of freedom is %d", ncol(outliers[,3:5])-1)
+```
+```{r ,echo=FALSE}
+# c
+    sprintf("The cutoff score is %.2f",cutoff)
+```
+```{r ,echo=FALSE}
+# d
+    print("There were 3 outliers and 24 NA")
+```
+```{r ,echo=FALSE}
+# e
+    # Before
+    dim(outliers)
+    
+    # After 
+    noout <- subset(outliers, mahal_summ < cutoff)
+    dim(noout)
+```
+
+# Assumptions:
+
+## Additivity: 
+
+    a)  Include the symnum bivariate correlation table of your continuous measures.
+    b)  Do you meet the assumption for additivity?
+    
+```{r additivity}
+str(noout)
+cor(noout[, -c(1,2)], use = 'pairwise.complete.obs')
+```
+
+
+```{r}
+corrplot(cor(noout[, -c(1,2)], use = 'pairwise.complete.obs'))
+```
+The table shows that none of the correlations are singularity or multicollinearity and only low correlations between some of the continuous variables.
+
+
+## Linearity: 
+
+    a)  Include a picture that shows how you might assess multivariate linearity.
+    b)  Do you think you've met the assumption for linearity?
+    
+```{r linearity}
+random <- rchisq(nrow(noout), 7)
+fake <- lm(random ~ ., data = noout)
+
+standardized <- rstudent(fake)
+fitvals <- scale(fake$fitted.values)
+```
+
+```{r}
+{qqnorm(standardized) 
+    abline(0,1)}
+```
+```{r}
+plot(fake, 2)
+```
+
+"The standardized plot does not reflect the theoretical plot. Although most of the data points are within range mid points are curved away from the line. Therefore, the dataset does not meet linearity very well.
+
+## Normality: 
+
+    a)  Include a picture that shows how you might assess multivariate normality.
+    b)  Do you think you've met the assumption for normality? 
+
+```{r normality}
+skewness(noout[, -c(1,2)], na.rm = TRUE)
+kurtosis(noout[, -c(1,2)], na.rm = TRUE) - 3
+```
+
+The results of these variables show skewness and an excess kurtosis.
+
+```{r}
+# Now using a histogram to visualize this
+hist(standardized, breaks = 15)
+```
+The histogram shows that the distribution is left skewed. This can be confirmed by the previous results of skewness and excess kurtosis. Taking into consideration of the skew the data is mostly normal as most of the data points are within range of (-2,2).
+
+## Homogeneity/Homoscedasticity: 
+
+    a)  Include a picture that shows how you might assess multivariate homogeneity.
+    b)  Do you think you've met the assumption for homogeneity?
+    c)  Do you think you've met the assumption for homoscedasticity?
+
+```{r homog-s}
+{plot(fitvals, standardized)
+    abline(0,0)
+    abline(v=0)}
+```
+The plot reveals that most of the points are spread evenly around the y-axis, making the dataset homogenous.The plot also reveals that the points are spread out across the y-axis with most of them grouped around the center. This group takes the shape of a box, making it normal homoscedastic.

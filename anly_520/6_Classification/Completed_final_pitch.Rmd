@@ -1,0 +1,30 @@
+---
+title: 'Executive 3: Pitch Your Analysis'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Be sure to list the group members at the top! This part of the project allows you to answer your own questions not covered in one of our assignments. Do not make this analysis extraordinarily complicated! You will just pitch your idea in this session, you will run the analysis in the final report. 
+
+## Subtitles
+
+What subtitles are you using for this project?
+
+ - For this project we will be using two sets of subtitles from the Japanese light novel/television series show, Sword Art Online. One subtitle is a fan-made Japanese to English translation of 5 episodes (episodes 1, 2, 5, 9, 12) of season 1 of the series. The second set of translations is from a fan dubbed parody series of the show which would follow the same episodes. 
+
+## Problem or Question
+
+What question or hypothesis do you want to answer with your subtitles? 
+
+ - The question this project seeks to answer is how much does the the series change between the fan-translation of the original run of Sword Art Online versus the fan-made parody of the series. We will also look at character personality, plot and world changes between the translations.
+
+## Answer the Question
+
+You can use any analysis we have done in class, extend to a new analysis type, or expand a previous analysis. In this section, explain how you will answer the question you proposed above. 
+
+ - The episodes' subtitles will each have the following analysis performed: Parts of Speech, Entity Recognition, Classification and Sentiment Analysis. Using these analysis we can compare the differences and similarities between the translated subtitles, how characters act and interact with each other and their environment and how the context of episodes changes.

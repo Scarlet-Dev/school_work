@@ -1,0 +1,318 @@
+---
+title: "t-Tests"
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+lab9 <- read.csv('09_data.csv')
+
+library('ggplot2')
+library('dplyr')
+library('reshape')
+library('moments')
+library('psych')
+library('mice')
+library(VIM, quietly = T)
+library('MOTE')
+library('pwr')
+
+cleanup <- theme(panel.grid.major = element_blank(), 
+                panel.grid.minor = element_blank(), 
+                panel.background = element_blank(), 
+                axis.line.x = element_line(color = "black"),
+                axis.line.y = element_line(color = "black"),
+                legend.key = element_rect(fill = "white"),
+                text = element_text(size = 15))
+
+percentmiss <- function(x) { 
+    return(sum(is.na(x))/length(x) * 100) 
+}
+
+```
+
+*Title*: Estimation of physical activity levels using cell phone questionnaires: A comparison with accelerometry for evaluation of between-subject and within-subject variations
+
+*Abstract*: Physical activity promotes health and longevity. From a business perspective, healthier employees are more likely to report to work, miss less days, and cost less for health insurance. Your business wants to encourage healthy lifestyles in a cheap and affordable way through health care incentive programs. The use of telecommunication technologies such as cell phones is highly interesting in this respect. In an earlier report, we showed that physical activity level (PAL) assessed using a cell phone procedure agreed well with corresponding estimates obtained using the doubly labeled water method. However, our earlier study indicated high within-subject variation in relation to between-subject variations in PAL using cell phones, but we could not assess if this was a true variation of PAL or an artifact of the cell phone technique. Objective: Our objective was to compare within- and between-subject variations in PAL by means of cell phones with corresponding estimates using an accelerometer. In addition, we compared the agreement of daily PAL values obtained using the cell phone questionnaire with corresponding data obtained using an accelerometer. 
+
+# Dataset: 
+
+    -	Gender: male and female subjects were examined in this experiment.
+    -   PAL_cell: average physical activity values for the cell phone accelerometer (range 0-100).
+    -	PAL_acc: average physical activity values for the hand held accelerometer (range 0-100).
+
+APA write ups should include means, standard deviation/error, t-values, p-values, effect size, and a brief description of what happened in plain English.
+
+```{r starting}
+dim(lab9)
+colnames(lab9)
+str(lab9)
+
+summary(lab9)
+```
+
+# Data screening:
+
+## Accuracy:
+    a)	Include output and indicate how the data are not accurate.
+    b)	Include output to show how you fixed the accuracy errors, and describe what you did.
+    
+```{r accuracy}
+# From the starting chunk we can see that some of the column 'PAL_cell' and 'PAL_acc' has some NA. Additionally, the gender column should be a factor based on its values of 'male' and 'female'.
+table(factor(lab9$gender))
+
+# We can see there is a even split of male and female subjects that participated in the study. We can now replace the char with a factor of "M" and "F".
+acc <- lab9
+acc$gender <- factor(acc$gender, levels = c('male','female'), labels = c("M","F"))
+
+summary(acc[,2:3])
+# From the summary on the PAL cell and acc can also see some NA's. Before removing the NA's we need to check if the values in the 
+
+table(acc$PAL_cell > 100.01 & acc$PAL_cell <0 )
+table(acc$PAL_acc > 100.01 & acc$PAL_acc < 0 )
+
+# Exculding the NA's all values in both table are within range. 
+apply(acc[2:3], 2, mean, na.rm = TRUE)
+apply(acc[2:3], 2, sd, na.rm = TRUE)
+
+```
+
+## Missing data:
+    a)	Include output that shows you have missing data.
+    b)	Include output and a description that shows what you did with the missing data.
+        
+```{r missing}
+missng <- acc
+apply(missng, 2, FUN = function(x){ sum(is.na(x)) })
+
+# From the applied function we see we have 6 missing values in the PAL related columns. We need to check the proportion of missing to complete values in the data set.
+aggr(missng, number = T)
+
+per_missing <- apply(missng[,2:3], 1, FUN = function(x){percentmiss(x)})
+table(factor(per_missing, labels = c("not missing", "missing"),levels = c(0, 50)))
+
+# For each of the PAL columns only 0.03 of the values are missing. Using a cut off percent of 5% for missing values the data set should qualify for mice calculation.
+replace_rows <- subset(missng, per_missing == 50)
+no_replace_rows <- subset(missng, per_missing != 50)
+
+replace_cols <- replace_rows[,-1]
+no_replace_col <- replace_rows[,1]
+
+temp_mice <- mice(replace_cols)
+miced_rows <- complete(temp_mice, 1)
+
+# Now we can reintroduce the completed columns back into the no_replace set
+no_missing <- cbind(no_replace_col, miced_rows)
+names(no_missing)[1] <- "gender"
+complete_set <- rbind(no_replace_rows, no_missing)
+
+# The data should now contain all complete cases
+summary(complete_set)
+```
+
+## Outliers:
+    a)	Include a summary of your mahal scores that are greater than the cutoff.
+    b)	What are the df for your Mahalanobis cutoff?
+    c)	What is the cut off score for your Mahalanobis measure?
+    d)	How many outliers did you have?
+    e)	Delete all outliers. 
+    
+```{r outliers a}
+# The first step is to find the mahalanobis summary and record our df, cutoff and total outliers from the complete set
+mahal <- complete_set
+
+mahal_summ <- mahalanobis(mahal[,-1], colMeans(mahal[,-1]), cov(mahal[,-1]))
+df <- ncol(mahal) - 1
+cutoff <- qchisq(1-0.001, df)
+total_outliers <- sum(mahal_summ > cutoff)
+```
+
+There was a df of `r df` with a Mahalanobis cutoff of `r round(cutoff,2)` and `r total_outliers` total outliers.
+
+```{r outliers e}
+# e
+noout <- subset(complete_set, mahal_summ < cutoff)
+```
+
+
+# Assumptions:
+
+## Additivity: 
+    a)  We won't need to calculate a correlation table. Why not?
+  There are no continuous variables in the data set to show a correlation or relationship.
+    
+## Linearity: 
+    a)  Include a picture that shows how you might assess multivariate linearity.
+    b)  Do you think you've met the assumption for linearity?
+    
+```{r linearity}
+# a
+random <- rchisq(nrow(complete_set), 7)
+fake <- lm(random ~ ., data = complete_set)
+summary(fake)
+
+standardized <- rstudent(fake)
+fitval <- scale(fake$fitted.values)
+
+{qqnorm(standardized)
+    abline(0,1)}
+
+# b
+# The assumption of linearity is not met.
+```
+
+## Normality: 
+    a)  Include a picture that shows how you might assess multivariate normality.
+    b)  Do you think you've met the assumption for normality? 
+
+```{r normality}
+# a
+kur <- kurtosis(standardized)-3
+sk <- skewness(standardized)
+
+hist(standardized, breaks = 15)
+# b
+# The data set does not meet normality.
+```
+The remaining kurtosis was `r round(kur,2)` and a skew of `r round(sk,2)`.
+
+## Homogeneity/Homoscedasticity: 
+    a)  Include a picture that shows how you might assess multivariate homogeneity.
+    b)  Do you think you've met the assumption for homogeneity?
+    c)  Do you think you've met the assumption for homoscedasticity?
+
+```{r homog-s}
+# a
+{plot(standardized, fitval)
+    abline(0,0)
+    abline(v=0)}
+
+# b & c
+# It can be assumed that the data does not have homogeneity or homoscedasticity.
+```
+
+# Independent t-test:
+
+1)	Run an independent t-test to determine if there are differences in gender for the cell phone measurement of physical activity level.
+    a.	Use the equal variances option to adjust for problems with homogeneity (if necessary). 
+    b.	Include means and sds for your groups. 
+    c.	Is there a significant difference in the ratings? 
+    
+```{r ind1}
+t.test(PAL_cell ~ gender,data = noout, var.equal = FALSE, paired = FALSE)
+```
+
+2)	Effect size: What is the effect size for this difference? Be sure to list which effect size you are using. 
+
+```{r effect1}
+ind.M <- tapply(noout$PAL_cell, noout$gender, mean)
+ind.SD <- tapply(noout$PAL_cell, noout$gender, sd)
+ind.N <- tapply(noout$PAL_cell, noout$gender, length)
+
+ind.M;ind.SD;ind.N;
+
+# Using Pooled SD Denominator to find the effective power
+eff.ind <- d.ind.t(ind.M[1], ind.M[2],ind.SD[1],ind.SD[2], ind.N[1], ind.N[2])
+```
+
+3)	Power: Determine the number of participants you should have used in this experiment given the effect size you found above. 
+
+```{r power1}
+pwr.ind <- pwr.t.test(n = NULL, 
+           d = eff.ind$d,
+           sig.level = 0.05, 
+           power = .80, 
+           type = "two.sample",
+           alternative = "two.sided")
+```
+
+4)	Graphs: Include a bar graph of these results.
+
+```{r graph1}
+graph1 <- ggplot(noout, aes(gender, PAL_cell))
+
+graph1 + 
+  cleanup +
+  stat_summary(fun = mean, geom = "col",)+
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",
+               width = .2, position = "dodge")+
+  labs(x = "Gender", y = "Physical Activity Levels w/ Cellphone", title = "Bar Graph of Physical Activity Levels of Cellphones \nbetween Gender groups")
+```
+From the t-test we can see there is a significant difference between the two groups.
+
+5)	Write up: include an APA style results section for this analysis (just the t-test not all the data screening).
+
+## Summary
+  In the independent t-test analysis we compared the physical activity levels (PAL) between the gender groups 'M' and 'F' using the cellphone method to see if there was a significant difference between the two groups. From the analysis we have means of `r round(ind.M[1],2)`, and a sd = `r round(ind.SD[1],2)`. For the women's group we have a mean = `r round(ind.M[2],2)` and a sd = `r round(ind.SD[2],2)`. The t-test produced a result of `r eff.ind$statistic` using `r eff.ind$df` degrees of freedom($df$). This also produced a confidence interval estimate of `r eff.ind$estimate` an effect size of `r round(eff.ind$d, 2)` and a power of `r round(pwr.ind$n, 2)`. In conclusion, the null hypothesis for this is that there is no difference between the PAL results between the two groups. The t-test showed that there is enough evidence to reject the null hypothesis as the $p <  a$ = `r pwr.ind$sig.level``.
+
+
+# Dependent t-test:
+
+6)	Run a dependent t-test to tell if there are differences in the cell phone and hand held accelerometer results.
+    a.	Include means and sds for your groups. 
+    b.	Is there a significant difference in the ratings? 
+
+```{r dep1}
+t.test(noout$PAL_cell, noout$PAL_acc, paired = TRUE)
+```
+
+7)	Effect size: What is the effect size for this difference? Be sure to list which effect size you are using. 
+
+```{r effect2}
+longNoout <- melt(noout, id = "gender", measure.vars = c("PAL_cell", "PAL_acc"))
+set.diff = longNoout[longNoout$variable == 'PAL_cell',]$value - longNoout[longNoout$variable == 'PAL_acc',]$value
+
+mdiff = mean(set.diff, na.rm = TRUE)
+sddiff = sd(set.diff, na.rm = TRUE)
+n = length(set.diff)
+
+# Using a SD Difference Score Denominator
+eff.dep <- d.dep.t.diff(mdiff = mdiff,
+                       sddiff = sddiff,
+                       n = n, a = 0.05)
+```
+
+8)	Power: Determine the number of participants you should have used in this experiment given the effect size you found above. 
+
+```{r power2}
+pwr.dep <- pwr.t.test(n = NULL, d = eff.dep$d, sig.level = 0.05, power = .80, type = "paired", alternative = "two.sided")
+```
+
+9)	Graphs: Include a bar graph of these results.
+
+```{r graph2}
+graph2 <- ggplot(longNoout, aes(variable, value))
+
+graph2 +
+  cleanup+
+  stat_summary(fun = mean, geom = 'bar')+
+  stat_summary(fun.data = mean_cl_normal, geom = 'errorbar', position = 'dodge', width = .2)+
+  labs(x = "Physical Activity Levels", y = "Levels", title = "Bar Graph of Measured Activity Levels \nfrom Cellphone and Accelorometer Measurements")+
+  scale_x_discrete(labels = c("Cellphone","Accelorometer"))
+```
+
+10)	Write up: include an APA style results section for this analysis (just the t-test not all the data screening).
+
+## Summary
+  In the dependent t test we test to see if there was a significant difference between PAL measured with a cellphone vs a accelerometer. From the test we found that the mean difference and sd between the two variables is `r round(eff.dep$mdiff,2)` and `r round(eff.dep$sd,2)`. The t-test results showed that `r eff.dep$statistic` and a confidence interval of `r eff.dep$estimate` with `r eff.dep$df` degrees of freedom. This also produced an effect size of `r round(eff.dep$d,2)` and a pairs of power of `r round(pwr.dep$n,2)`. In conclusion we can reject the null hypothesis with a $p < a$ =significance level of `r pwr.dep$sig.level`.
+
+
+# Theory:
+
+11)	List the null hypothesis for the dependent t-test.
+
+12)	List the research hypothesis for the dependent t-test.
+
+13)	If the null were true, what would we expect the mean difference score to be?
+
+14)	If the null were false, what would we expect the mean difference score to be?
+
+15)	In our formula for dependent t, what is the estimation of systematic variance?
+
+16)	In our formula for dependent t, what is the estimation of unsystematic variance?
+
+## Summary
+  
+  The null hypothesis of the dependent t-test is no difference in the mean difference of PAL_cell and PAL_acc variables. The research hypothesis of the dependent t-test would be that there is a difference in means between PAL_cell and PAL_acc/ If the null hypothesis were true we would expect the difference to equal to 0, otherwise, the differences will not be euqal to 0. In the dependent t-test formula we have $t =  \frac{\bar{D}-\mu_D}{S_D/\sqrt{N}}$ where $\bar{D}-\mu_D$ is the systemic variance which is derived from the mean difference between the two groups (PAL_cell & PAL_acc) while the unsystematic variance $S_D/\sqrt{N}$ is derived from the standard error of the mean difference of the same groups.

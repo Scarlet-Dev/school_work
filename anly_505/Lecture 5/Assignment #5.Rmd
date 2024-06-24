@@ -1,0 +1,169 @@
+---
+title: 'Assignment #5'
+subtitle: 'Chapter 6'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(dagitty)
+library(rethinking)
+library(tidyr)
+library(dplyr)
+```
+
+## Chapter 6 - The Haunted DAG & The Causal Terror
+
+Multiple regression is no oracle, but only a golem. It is logical, but the relationships it describes are conditional associations, not causal influences. Therefore additional information, from outside the model, is needed to make sense of it. This chapter presented introductory
+examples of some common frustrations: multicollinearity, post-treatment bias, and collider bias. Solutions to these frustrations can be organized under a coherent framework in which hypothetical causal relations among variables are analyzed to cope with confounding. In all cases, causal models exist outside the statistical model and can be difficult to test. However, it is possible to reach valid causal inferences in the absence of experiments. This is good
+news, because we often cannot perform experiments, both for practical and ethical reasons.
+
+Place each answer inside the code chunk (grey box).  The code chunks should contain a text response or a code that completes/answers the question or activity requested. Make sure to include plots if the question requests them.  
+
+Finally, upon completion, name your final output `.html` file as: `YourName_ANLY505-Year-Semester.html` and publish the assignment to your R Pubs account and submit the link to Canvas. Each question is worth 5 points.
+
+## Questions
+
+**6-1.** Modify the DAG on page 186 to include the variable V, an unobserved cause of C and Y:
+C ← V → Y. Reanalyze the DAG. Draw the DAG. How many paths connect X to Y? Which must be closed? Which
+variables should you condition on now?
+
+```{r 6-1}
+dag_coords <- list(name = c("X", "U", "A", "B", "C", "Y", "V"),
+                     x = c(1, 1, 2, 2, 3, 3, 3.5),
+                    y = c(1, 2, 2.5, 1.5, 2, 1, 1.5))
+dbase <- dagitty("dag { 
+  U [unobserved]
+  V [unobserved]
+  X -> Y
+  X <- U <- A -> C -> Y
+  U -> B <- C
+  C <- V -> Y }")
+
+dagitty::coordinates(dbase) <- dag_coords
+drawdag(dbase)
+
+adjustmentSets(dbase, exposure = "X", outcome = "Y")
+```
+
+```{r 6-1.exp}
+# With the three mentioned in the textbook we have now two additional ways of X to Y
+# X <- U <- A -> C -> Y
+# X <- U -> B <- C -> Y
+# X <- U -> B <- C <- V -> Y
+# X <- U <- A -> C <- V -> Y
+```
+
+
+**6-2.** Sometimes, in order to avoid multicollinearity, people inspect pairwise correlations among
+predictors before including them in a model. This is a bad procedure, because what matters is the
+conditional association, not the association before the variables are included in the model. To highlight
+this, consider the DAG X → Z → Y. Simulate data from this DAG so that the correlation
+between X and Z is very large. Then include both in a model prediction Y. Do you observe any
+multicollinearity? Why or why not? What is different from the legs example in the chapter?
+
+```{r 6-2}
+n <- 1000
+x = rnorm(n)
+z = rnorm(n, mean = x, sd = 0.01)
+y = rnorm(n, mean = z)
+
+sim_data<- alist(
+  y ~ dnorm(mu, sigma),
+  mu <- a + bx*x + bz*z,
+  c(a, bx, bz) ~ dnorm(0, 2),
+  sigma ~ dexp(1)) %>% 
+quap(data <- list(x = x, y = y, z = z))
+  
+precis(sim_data, decreasing = T)
+```
+
+
+```{r 6-2.plot}
+plot(precis(sim_data))
+```
+
+All three problems below are based on the same data. The data in data(foxes) are 116 foxes from
+30 different urban groups in England. These foxes are like street gangs. Group size varies from 2 to
+8 individuals. Each group maintains its own urban territory. Some territories are larger than others.
+The area variable encodes this information. Some territories also have more avgfood than others.
+We want to model the weight of each fox. For the problems below, assume the following DAG:
+
+```{r echo=FALSE}
+quest <- dagitty( "dag {area -> avgfood
+    avgfood -> groupsize
+    avgfood -> weight
+    groupsize -> weight
+}")
+
+coordinates (quest) <- list(x=c(area=1,avgfood=0,groupsize=2, weight=1),
+                          y=c(area=0, avgfood=1, groupsize=1, weight=2))
+
+drawdag(quest, lwd = 2)
+```
+
+**6-3.** Use a model to infer the total causal influence of area on weight. Would increasing the area
+available to each fox make it heavier (healthier)? You might want to standardize the variables. Regardless,
+use prior predictive simulation to show that your model’s prior predictions stay within the
+possible outcome range.
+
+```{r 6-3}
+data(foxes)
+
+fox_data <- foxes %>% 
+  as_tibble() %>% 
+  mutate(across(-group, standardize))
+
+fox_model <- alist(
+  weight ~ dnorm(mu, sigma),
+  mu <- a + B_area*area,
+  a ~ dnorm(0, 0.1),
+  B_area <- dnorm(0, 0.25),
+  sigma ~ dexp(1)) %>% 
+quap(data = fox_data)
+
+precis(fox_model)
+
+chisq.test(table(fox_data$area, fox_data$weight))
+```
+```{r 6-3.plot}
+plot(precis(fox_model))
+```
+
+
+**6-4.** Now infer the causal impact of adding food to a territory. Would this make foxes heavier?
+Which covariates do you need to adjust for to estimate the total causal influence of food?
+
+```{r 6-4}
+alist(
+  weight ~ dnorm(mu, sigma),
+  mu <- a + b_avgfood*avgfood + b_avggroupsize*groupsize,
+  a <- dnorm(0, 0.02),
+  c(b_avgfood, b_avggroupsize) ~ dnorm(0, 0.25),
+  sigma <- dexp(1)) %>% 
+quap(data = fox_data) %>% 
+  precis()
+```
+
+**6-5.** Now infer the causal impact of group size. Which covariates do you need to adjust for? Looking
+at the posterior distribution of the resulting model, what do you think explains these data? That is,
+can you explain the estimates for all three problems? How do they go together?
+
+```{r 6-5}
+quest <- dagitty("dag{area -> avgfood -> groupsize -> weight <- avgfood}")
+adjustmentSets(quest, exposure = "groupsize", outcome = "weight")
+```
+```{r}
+alist(
+  weight ~ dnorm(mu, sigma),
+  mu <- a + b_avgfood*avgfood + b_avggroupsize*groupsize,
+  a <- dnorm(0, 0.2),
+  c(b_avgfood, b_avggroupsize) ~ dnorm(0, 0.5),
+  sigma <- dexp(1)) %>% 
+quap(data = fox_data) %>% 
+  precis()
+```
+
+

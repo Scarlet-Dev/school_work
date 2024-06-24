@@ -1,0 +1,77 @@
+---
+title: "ANLY 510 Exam 2 Q1"
+author: "Akane Simpson"
+date: "2/21/2022"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+setwd('~/hu_lectures/anly_510/Exam_2/')
+```
+
+## Question
+
+  Some researches have shown that class size and school budget have significant correlations with students’ performance. Recently, students' test scores on general education were randomly selected by the government. Class size (a dummy coded variable indicating smaller to very larger class sizes) and school budget (from one million to thirteen million) were collected. The minister of education wants to know if class size has an impact on general education scores. Be sure to perform a complete analysis and provide a full summary.
+  
+### Research Question
+From the question we can formulate a research question. Does the class size have an effect on the general education scores?
+
+### Hypothesis
+
+  From the question we can create our null and alternative hypothesis:
+  
+  - $H_0$: Class size does not have an significant effect on general education scores.
+  - $H_A$: Class size does have an significant effect on general education scores.
+
+### Assumptions
+
+  Additionally, we can identify the variables from the research question
+
+  - IV: Education Score
+  - DV: Class Size, Budget
+
+### R Code
+```{r, eval=FALSE}
+library(readxl)
+library(moments)
+library(psych)
+library(car)
+library(Hmisc)
+
+
+master = read_xlsx('./Application1.xlsx')
+str(master)
+
+## dropping school codes
+education <- as.data.frame(master[,-2])
+summary(education)
+
+# checking the relationships between variables
+cor(education)
+
+# Class size has a moderate and negative relationship with education scores
+# Budget has a very small and positive relationship with education scores
+
+# Assumptions
+plot(density(education$budget))
+plot(density(education$educationscore))
+plot(density(education$classsize))
+
+qqnorm(education$educationscore)
+qqnorm(education$budget)
+qqnorm(education$classsize)
+
+scatterplot(education$classsize, education$educationscore)
+scatterplot(education$budget, education$educationscore)
+
+# We can confidently create our final model without the budget variable
+ed.model <- lm(educationscore ~ classsize, data = education)
+summary(ed.model)
+```
+
+### APA Summary
+
+A simple regression model was conducted to predict schools’ education scores, based on their class size. All the regression assumptions were met, and no further adjustment made. A significant regression equation was found (F (1, 10318) = 3566, p < .001), with an R2 of .26. Both the intercept (p < 0.001) and predictor (p < .001) were statistically significant. The result suggested that, class size predicts and shows that for each class size increase there is a 0.124381 percent decrease in education scores.
+  	

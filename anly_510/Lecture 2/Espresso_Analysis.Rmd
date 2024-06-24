@@ -1,0 +1,110 @@
+---
+title: "ANLY 510 Assignment 2"
+author: "Akane Simpson"
+date: "11/21/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Research Question
+
+  In the Espresso data there are three methods of espresso brewing that we observed.
+The methods were split into three groups of 9 samples. The creme levels were measured between the three groups. A research question that may be proposed is this: 'is there a significant difference in espresso's creme levels between the three brewing methods?'
+
+
+## Hypothesis
+
+  From the research question we can establish a null and alternative hypothesis in regards to the espresso levels. 
+  
+  - $H_O$: There is no significant difference in espresso creme levels between the brewing methods. 
+  - $H_A$: There is at least one brewing method that has a signifcant difference in espresso creme levels.
+
+## R Code
+
+```{r cars, eval=FALSE}
+library(moments)
+
+master = read.csv('./EspressoData.csv')
+
+data = master
+summary(data)
+
+data$brewmethod = factor(data$brewmethod)
+
+# Skewness
+plot(density(data$cereme))
+agostino.test(data$cereme)
+# The density plot and Agostino test is used for the skewness test.
+# The result showed the that the p-value not being less that the significant 
+# value of 0.05 (p< 0.05). We can assume that the sample does not have skewness.
+
+# Normality
+qqnorm(data$cereme)
+shapiro.test(data$cereme)
+# The qqnorm plot and Shpairo Test is used for normality test.
+# The resuslts shows that the Espresso data is normal and significant. 
+# With a p < 0.05 we can reject the assumption that the Espresso data is normal.
+
+
+# Independence
+espresso.lm = lm(cereme ~ brewmethod, data = data)
+espresso.res = resid(espresso.lm)
+
+plot(data$cereme, espresso.res, xlab = "Creme Level", ylab = "Residual", 
+     main = "Residual against Creme Level")
+abline(0,0)
+# The residual plot shows that the values are mostly spread across the graph
+# evenly.
+
+
+# Equal Variance
+bartlett.test(data$cereme, data$brewmethod)
+tapply(data$cereme, data$brewmethod, var)
+# The Bartlett test checks for variance in the data. Since the p< 0.05 we can 
+# assume that it passes the variance assumption
+
+
+# ANOVA Analysis
+espresso.aov = aov(cereme ~ brewmethod, data = data)
+summary(espresso.aov)
+# The summary of the ANOVA model shows that the brewing method does have a significant effect
+# on the creme levels of the espressos. 
+
+
+# Post Hoc
+library(pgirmess)
+
+TukeyHSD(espresso.aov)
+# We use the Tukey HSD test to find statistical difference between the three 
+# brewing methods
+
+# Effect Size
+library(pastecs)
+library(compute.es)
+
+by(data$cereme, data$brewmethod, stat.desc)
+# The by() and stat.desc method shows a descriptive summary of values for each 
+# brewing method group.
+
+# Method 1 & 2
+mes(61.3,32.4,10.1,7.3,9,9)
+
+# Method 2 & 3
+mes(61.3,39.7,10.1,7.7,9,9)
+
+# Method 1 & 3
+mes(39.7,32.4,7.7,7.3,9,9)
+
+# The mes() method is used to return effect values between two groups. In this
+# we run several mes methods between each group of brewing methods.
+```
+
+## APA Summary
+
+  Observations from the study were analyzed by conducting a one-way analysis of variance using R version 4.1.1. First, all assumptions are met and there is no adjustment made. Results suggest that the creme level of the espresso was affected by its brewing method (as 1, 2 or 3) of the participants (F(2, 24) = 28.41, p < .001)
+	
+	Continue the discussion with specifically which groups differed, a Tukey’s hoc test was established. The result suggested that there is a significant difference between brewing method 1 and brewing method 2 (p < .001) and bewing method 1 and 3 (p < .001), in terms of the valuation of creme levels. There was no significant difference between brewing methods 2 and 3. The effect was large between methods 1 & 2, and 1 & 3, Cohen’s D = 3.28 for methods 1 and 2 and Cohen's D = 0.97 for methods 1 and 3. The Cohen's D for methods 2 and 3 was D = 2.41. 
+

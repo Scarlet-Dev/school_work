@@ -1,0 +1,56 @@
+---
+title: "Module 4 - Contingency Tables 1"
+author: "Akane Simpson"
+date: '2022-04-26'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(knitr)
+library(vcd)
+library(reshape2)
+```
+
+```{r, echo=FALSE}
+data <- read.csv('./data.4.csv')
+clean <- data
+
+clean$Division <- factor(clean$Division)
+clean$Gender <- factor(clean$Gender, levels = c('Male', 'Female'))
+clean$Hired <- factor(clean$Hired, levels = c('Y', 'N'))
+
+base.freq <- xtabs(~ Gender + Hired, data = clean)
+totals <- c( sum(base.freq[1,]), sum(base.freq[2,]) )
+percents <- c( (base.freq[1,1]/totals[1]), (base.freq[2,1]/totals[2]) ) 
+hiring.odds <- sapply(percents, FUN = function(x) { x/(1-x) } )
+
+reshaped.base <- reshape(data.frame(base.freq), idvar = "Gender", timevar = "Hired", direction = "wide")
+colnames(reshaped.base) <- c("Gender", "Hired", "Not Hired")
+
+reshaped.base$Total.Hired <- totals
+reshaped.base$Percent.Hired <- as.double(format(percents * 100, digits = 4))
+reshaped.base$Hiring.Odds <- hiring.odds
+
+mort <- matrix( c(reshaped.base[, "Hired"], reshaped.base[, "Not Hired"]), nrow = 2, ncol=2)
+
+or <- oddsratio(mort, log = F)
+
+# Where 
+# HO: There is no significant odds ratio for hiring men vs hiring women
+# HA: There is a significant odds ratio for hiring men vs women
+# confint(or)
+
+odds.ratio <- c( round(reshaped.base[1,6]/reshaped.base[2,6], 2), round(reshaped.base[2,6]/reshaped.base[1,6], 2) )
+
+reshaped.base$Hiring.Odds <- round(hiring.odds, 2)
+
+freq.table <- knitr::kable(reshaped.base, col.names = c("", "Hired", "Not Hired", "Total" , "% Hired", "Odds(Hired)"), caption = "Company wide hiring")
+```
+
+
+## Analysis (Fact)
+1. The __Odds Ratio__ for Table 1 is ___`r odds.ratio[1]`___ and [is] significant.
+
+## Tables and Figures
+`r freq.table`

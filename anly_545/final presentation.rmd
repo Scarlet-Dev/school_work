@@ -1,0 +1,81 @@
+---
+title: "Final Presentation"
+author: '{{your name(s) here}}'
+date: "`r Sys.Date()`"
+editor_options: 
+  chunk_output_type: console
+output:
+  slidy_presentation: default
+---
+
+# Instructions
+
+The purpose of the project is to learn how to formulate a problem statement or research question, determine how to best find a solution to the stated problem or answer to the research question, do that and then develop a final presentation.
+The project is team-based.
+Individual grades will include points for how well they contributed to the team effort.
+
+The course project has two deliverables:
+
+1.	Concept presentation
+2.	Final presentation
+
+The **Final presentation** deliverable is described below.  
+Each case study presents a situation, challenge or problem.
+The primary objective of the course project is to determine how analytics and in particular categorical data analytics could or can help the respective company or society address the situation or overcome the challenge or problem it is facing.
+To do this each team must review the case study, formulate a problem statement or research question as appropriate, and then identify the appropriate analytics methods or techniques completing analyses where possible.  
+
+# Final Presentation
+
+The final presentation should cover everything about the project.
+It should cover the situation, problem or challenge that required attention, the relevant background, related work, data, and technical details of the analysis, conclusions and possible directions for future work.
+It is recognized that not all of the following sections will pertain to each presentation.
+However, it is strongly recommended that these section topics be used as a guideline for your final presentation. 
+
+
+1. Introduce a problem that has meaning.
+2. Design and execute insightful analyses
+   * Form a testable hypothesis
+   * Select the appropriate analytical technique
+   * Determine requirements for data
+   * Defend choice of algorithms used to answer a research question
+3. Identify and assess the  objectives, scope, and methodological limitations for domain-specific problems.
+   * Assess the utility of available data
+   * Which algorithms/techniques/models do you plan to use/develop?
+     Why? 
+   * Translate between a domain problem and an analytical framework
+   * Identify appropriate data (tools) needed to solve the problem. 
+
+# Project Summary (1 slide)
+
+* Formally state your conclusion
+
+# Project Overview (5 slides)
+
+* What problem is at hand?
+* The issue(s) or challenge(s) that identified the research question or problem.
+
+# Hypothesis (1 slide)
+
+* Formally state $H_0$ and $H_1$
+* Did the hypothesis need to change from the initial presentation?
+
+# Data (3 slides)
+
+* What are the requirements?
+* Where did you find the data?
+* Did the data you ended up using meet all the initial requirements?
+* What data cleansing was needed?
+
+# Analytic Scope (7 slides)
+
+* What techniques did you use?
+* Did you stick to your scope?
+* Did the techniques provide insight either positive or in rejecting your narrative?
+* What pitfalls do you run into during the analysis?
+* Charts / Tables?
+
+# Future (2 slides)
+
+* What analysis could you perform in the future based on your findings?
+* What additional  data would you need?
+  Why?

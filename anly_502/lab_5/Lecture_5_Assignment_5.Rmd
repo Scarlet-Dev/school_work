@@ -1,0 +1,77 @@
+---
+title: "Lecture_5_Assignment_5"
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# On your own
+
+```{r, echo=FALSE}
+load("./ames.RData")
+```
+
+
+## So far, we have only focused on estimating the mean living area in homes in Ames. Now you'll try to estimate the mean home price.
+
+1. Take a random sample of size 50 from  price. Using this sample, what is your best point estimate of the population mean?
+```{r}
+price_sample <- sample(ames$SalePrice, 50)
+price_sample_smry <- summary(price_sample)
+
+hist(price_sample, breaks = 25, xlim = c(0,500000), main = "Histogram of Sample Size 50 for Aems Price", xlab = "Price($)", col = "blue")
+```
+
+```{r, echo=FALSE}
+sprintf("The point estimate of this sample is $%.2f", mean(price_sample))
+```
+
+2. Since you have access to the population, simulate the sampling distribution for $\bar{x}_{price}$ price (sampling mean of price ) by taking 5000 samples from the population of size 50 and computing 5000 sample means. Store these means in a vector called  sample_means50 . Plot the data, then describe the shape of this sampling distribution.
+
+```{r,echo=FALSE, warning=FALSE}
+sample_means50 <- rep(NA, 5000)
+for (i in 1:5000) {
+  sample_means50[i] <- sapply(sample(ames$SalePrice, 50), mean)
+}
+```
+
+```{r 2 - Histogram of 5000 Samples of Size 50}
+hist(sample_means50, breaks = 25, main = "Histogram of 5000 Sample Means of Size 50", xlab = "Price Means of Samples($)", col = "red")
+```
+```{r, echo=FALSE}
+print("The sample distribution is not normal and has a right skrew. The value distribution is also high where the majroity of the frequency is between the 0 and 2x10^5 mean prices.")
+```
+
+
+  a. Based on this sampling distribution, what would you guess the mean home price of the population to be? Finally, calculate and report the population mean.
+```{r 2a, echo=FALSE}
+sprintf("The initial guess is that the mean is below the 200,000 mark. The actual calculated mean here is $%.2f.", mean(sample_means50))
+```
+
+3. Change your sample size from 50 to 150, then compute the sampling distribution using the same method as above, and store these means in a new vector called sample_means150 . Describe the shape of this sampling distribution, and compare it to the sampling distribution for a sample size of 50.
+```{r 3, warning=FALSE}
+sample_means150 <- rep(NA, 5000)
+for (i in 1:5000) {
+  sample_means150[i] <- sapply(sample(ames$SalePrice, 150), mean)
+}
+```
+
+```{r 3: Histogram of 5000 Samples of Size 150}
+hist(sample_means150, breaks = 25, main = "Histogram of 5000 Sample Means of Size 150", xlab = "Price Means of Samples($)", col ="dark green")
+```
+
+  
+  a. Based on this sampling distribution, what would you guess to be the mean sale price of homes in Ames?
+```{r 3a, echo=FALSE}
+sprintf("The initial guess of this sample distribution's mean would be around 180,000 while the actual sample mean is $%.2f.", mean(sample_means150))
+```
+
+4. Of the sampling distributions from 2 and 3, which has a smaller spread? If we're concerned with making estimates that are more often close to the true value, would we prefer a distribution with a large or small spread?
+```{r 4,echo=FALSE}
+print("The first sample had a smaller spread with only a 50 sample size. Having a larger spread of values is prefered.A lower standard error would equal a better estimate of the true population mean.")
+```
+

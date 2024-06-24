@@ -1,0 +1,269 @@
+---
+title: 'Assignment #6'
+subtitle: 'Chapter 7'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(knitr)
+library(rethinking)
+library(dagitty)
+
+w <- c('Species A', 'Species B', 'Species C', 'Species D', 'Species E')
+x <- c(0.2,0.2,0.2,0.2,0.2)
+y <- c(0.8,0.1,0.05,0.025,0.025)
+z <- c(0.05,0.15,0.7,0.05,0.05)
+d <- rbind(w,x,y,z)
+rownames(d) <- c('Island', '1', '2', '3')
+
+sim_build <- function(N){
+  dat <- data.frame(
+    x = rnorm(N),
+    y = rnorm(N)
+  )
+dat$x <- scale(dat$x, center = TRUE, scale = TRUE)
+dat$y <- scale(dat$y, center = TRUE, scale = TRUE)
+
+model <- quap(
+  alist(
+    y ~ dnorm(mu, sig),
+    mu <- a + b*x,
+    a <- dnorm(0, 0.2),
+    b <- dnorm(0, 0.5),
+    sig ~ dexp(1)
+    ), data = dat)
+  
+
+return(model)
+}
+```
+
+## Chapter 7 - Ulysses' Compass
+
+The chapter began with the problem of overfitting, a universal
+phenomenon by which models with more parameters fit a sample better, even when the additional parameters are meaningless. Two common tools were introduced to address overfitting: regularizing priors and estimates of out-of-sample accuracy (WAIC and PSIS). Regularizing priors reduce overfitting during estimation, and WAIC and PSIS help estimate the
+degree of overfitting. Practical functions compare in the rethinking package were introduced to help analyze collections of models fit to the same data. If you are after causal estimates, then these tools will mislead you. So models must be designed through some other method, not selected on the basis of out-of-sample predictive accuracy. But any causal estimate will still overfit the sample. So you always have to worry about overfitting, measuring
+it with WAIC/PSIS and reducing it with regularization.
+
+Place each answer inside the code chunk (grey box).  The code chunks should contain a text response or a code that completes/answers the question or activity requested. Make sure to include plots if the question requests them.  
+
+Finally, upon completion, name your final output `.html` file as: `YourName_ANLY505-Year-Semester.html` and publish the assignment to your R Pubs account and submit the link to Canvas. Each question is worth 5 points.
+
+## Questions
+
+**7-1.** When comparing models with an information criterion, why must all models be fit to exactly
+the same observations? What would happen to the information criterion values, if the models were
+fit to different numbers of observations? Perform some experiments.
+
+```{r 7-1}
+# Models that have more observations will produce more deviancy and worsening accuracy. Models that have differing amount of observations should not compared.
+model200 <- sim_build(200)
+model400 <- sim_build(400)
+model600 <- sim_build(600)
+
+(model.compare <- compare(model200, model400, model600))
+```
+```{r}
+# From the table we can see that the increasing observations increases the WAIC between each model.
+```
+
+**7-2.** What happens to the effective number of parameters, as measured by PSIS or WAIC, as a prior
+becomes more concentrated? Why? Perform some experiments.
+
+```{r 7-2}
+# 
+sim_data <- data.frame(
+  x = rnorm(50),
+  y = rnorm(50)
+)
+sim_data$log.x = scale(sim_data$x)
+sim_data$log.xz = (sim_data$log.x - mean(sim_data$log.x))/sd(sim_data$log.x)
+sim_data$log.y = scale(sim_data$y)
+sim_data$log.yz = (sim_data$log.y - mean(sim_data$log.y))/sd(sim_data$log.y)
+
+non_concentrated <- quap(
+  alist(
+    log.yz ~ dnorm(mu, sig),
+    mu <- a + b * log.xz,
+    a ~ dnorm(0, 10),
+    b ~ dnorm(1, 10),
+    sig ~ dunif(0, 10)
+  ), data = sim_data
+)
+
+concentrated <- quap(
+  alist(
+    log.yz ~ dnorm(mu, sig),
+    mu <- a + b * log.xz,
+    a ~ dnorm(0, 1),
+    b ~ dnorm(1, 1),
+    sig ~ dunif(0, 1)
+  ), data = sim_data
+)
+```
+
+```{r non_concentrated}
+WAIC(non_concentrated, refresh = 0)
+```
+
+```{r concentrated}
+WAIC(concentrated, refresh = 0)
+```
+
+```{r}
+# The WAIC increases the more concentrated the values becomes.
+```
+
+
+**7-3.** Consider three fictional Polynesian islands. On each there is a Royal Ornithologist charged by
+the king with surveying the bird population. They have each found the following proportions of 5
+important bird species:
+
+```{r echo=FALSE}
+kable(d, align = "cccccc")
+```
+
+Notice that each row sums to 1, all the birds. This problem has two parts. It is not computationally
+complicated. But it is conceptually tricky. First, compute the entropy of each island’s bird distribution.
+Interpret these entropy values. Second, use each island’s bird distribution to predict the other two.
+This means to compute the KL divergence of each island from the others, treating each island as if it
+were a statistical model of the other islands. You should end up with 6 different KL divergence values.
+Which island predicts the others best? Why?
+
+```{r 7-3}
+```
+
+**7-4.** Recall the marriage, age, and happiness collider bias example from Chapter 6. Run models
+m6.9 and m6.10 again (page 178). Compare these two models using WAIC (or PSIS, they will produce
+identical results). Which model is expected to make better predictions? Which model provides the
+correct causal inference about the influence of age on happiness? Can you explain why the answers
+to these two questions disagree?
+
+```{r 7-4}
+happy <- sim_happiness(seed = 1977, N_years = 1000)
+d2 <- happy[happy$age > 17, ]
+d2$A <- (d2$age - 18)/(65-18)
+
+d2$mid <- d2$married + 1
+m6.9 <- quap(
+  alist(
+    happiness ~ dnorm(mu, sig),
+    mu <- a[mid] + bA*A,
+    a[mid] ~ dnorm(0, 1),
+    bA ~ dnorm(0, 2),
+    sig ~ dexp(1)
+  ), data = d2)
+
+m6.10 <- quap(
+  alist(
+    happiness ~ dnorm(mu, sig),
+    mu <- a + bA*A,
+    a ~ dnorm(0, 1),
+    bA ~ dnorm(0, 2),
+    sig ~ dexp(1)
+  ), data = d2)
+```
+
+
+```{r 7-4.1}
+WAIC(m6.9, refresh = 0)
+```
+
+
+```{r 7-4.2}
+WAIC(m6.10, refresh = 0)
+```
+
+```{r}
+# The WAIC favors the model with the collider bias(m6.9). WAIC focuses more on prediction than on casual association, hence m6.9 would be a better predictor while m6.10 would be better for casual inference.
+```
+
+
+**7-5.** Revisit the urban fox data, data(foxes), from the previous chapter’s practice problems. Use
+WAIC or PSIS based model comparison on five different models, each using weight as the outcome,
+and containing these sets of predictor variables:
+
+ - avgfood + groupsize + area
+ - avgfood + groupsize
+ - groupsize + area
+ - avgfood
+ - area
+ 
+Can you explain the relative differences in WAIC scores, using the fox DAG from the previous chapter?
+Be sure to pay attention to the standard error of the score differences (dSE).
+
+```{r 7-5}
+data("foxes")
+dat_foxes <- foxes
+
+dat_foxes <- data.frame(lapply(dat_foxes, scale))
+
+m1 <- quap(
+  alist(
+  weight ~ dnorm(mu, sigma), 
+  mu <- a + Bf*avgfood + Bg*groupsize + Ba*area, 
+  a ~ dnorm(0, 0.2), 
+  c(Bf, Bg, Ba) ~ dnorm(0, 0.5), 
+  sigma ~ dexp(1)), data = dat_foxes)
+
+m2 <- quap(
+  alist(
+  weight ~ dnorm(mu, sigma), 
+  mu <- a + Bf*avgfood + Bg*groupsize, 
+  a ~ dnorm(0, 0.2), 
+  c(Bf, Bg) ~ dnorm(0, 0.5), 
+  sigma ~ dexp(1)), data = dat_foxes)
+
+m3 <- quap(
+  alist(
+  weight ~ dnorm(mu, sigma), 
+  mu <- a + Bg*groupsize + Ba*area, 
+  a ~ dnorm(0, 0.2), 
+  c(Bg, Ba) ~ dnorm(0, 0.5), 
+  sigma ~ dexp(1)), data = dat_foxes)
+
+m4 <- quap(
+  alist(
+  weight ~ dnorm(mu, sigma), 
+  mu <- Bf*avgfood, 
+  a ~ dnorm(0, 0.2), 
+  Bf ~ dnorm(0, 0.5), 
+  sigma ~ dexp(1)), data = dat_foxes)
+
+m5 <- quap(
+  alist(
+  weight ~ dnorm(mu, sigma), 
+  mu <- a + Ba*area, 
+  a ~ dnorm(0, 0.2), 
+  Ba ~ dnorm(0, 0.5), 
+  sigma ~ dexp(1)), data = dat_foxes)
+```
+
+```{r}
+(models_compare <- compare(m1, m2, m3, m4, m5))
+```
+
+```{r}
+# From the table none of the models are preferred. An example of this are m1, m2 and m3 are grouped on how similar their WAIC values while models m4 and m5 can be grouped together using the same criteria. Using the dag model we can further explain why each model turned out this way.
+```
+
+```{r}
+quest <- dagitty( "dag {area -> avgfood
+    avgfood -> groupsize
+    avgfood -> weight
+    groupsize -> weight
+}")
+
+coordinates (quest) <- list(x=c(area=1,avgfood=0,groupsize=2, weight=1),
+                          y=c(area=0, avgfood=1, groupsize=1, weight=2))
+
+drawdag(quest, lwd = 2)
+```
+```{r}
+# Models m4(avgfood) and m5(area) do not use group size while models m1(avgfood + groupsize + area), m2(avgfood + groupsize), m3(area + groupsize) all use groupsize. While comparing group 1(m1, m2, m3) and group 2 (m4, m5) we can see that the inclusion of groupsize affects the WAIC value.
+```
+
+

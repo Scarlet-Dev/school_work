@@ -1,0 +1,151 @@
+---
+title             : "Internet Culture – Incel Language Detection within in-groups on the internet"
+shorttitle        : "Incel Language Detection"
+
+author: 
+  - name          : "Akane Simpson"
+    affiliation   : "1"
+    corresponding : yes    # Define only one corresponding author
+    address       : "326 Market St, Harrisburg, PA 17101"
+    email         : "asimpson@my.harrisburgu.edu"
+    role:         # Contributorship roles (e.g., CRediT, https://casrai.org/credit/)
+      - "Conceptualization"
+      - "Writing - Original Draft Preparation"
+      - "Writing - Review & Editing"
+
+affiliation:
+  - id            : "1"
+    institution   : "Harrisburg University of Science & Technology"
+
+authornote: 
+  
+keywords          : "keywords"
+wordcount         : "X"
+
+
+floatsintext      : no
+linenumbers       : no
+draft             : no
+mask              : no
+
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+
+header-includes:
+  - |
+    \makeatletter
+    \renewcommand{\paragraph}{\@startsection{paragraph}{4}{\parindent}%
+      {0\baselineskip \@plus 0.2ex \@minus 0.2ex}%
+      {-1em}%
+      {\normalfont\normalsize\bfseries\typesectitle}}
+    
+    \renewcommand{\subparagraph}[1]{\@startsection{subparagraph}{5}{1em}%
+      {0\baselineskip \@plus 0.2ex \@minus 0.2ex}%
+      {-\z@\relax}%
+      {\normalfont\normalsize\bfseries\itshape\hspace{\parindent}{#1}\textit{\addperi}}{\relax}}
+    \makeatother
+
+csl               : "`r system.file('rmd', 'apa7.csl', package = 'papaja')`"
+documentclass     : "apa7"
+output            : papaja::apa6_pdf
+bibliography: r-references.bib
+---
+
+```{r setup, include = FALSE}
+library("papaja")
+r_refs("./r-references.bib")
+```
+
+```{r analysis-preferences}
+# Seed for random number generation
+set.seed(42)
+knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
+```
+
+There is a growing threat in Western world. Sexual and romantically starved people, mostly men but some women, are being radicalized online through long term exposure and interaction with the involuntary celibate. The Involuntary Celibate or Incel as a short hand, are an internet subculture that has gained notoriety through recent mass violence attacks. This subculture has been studied and has revealed characteristics of it that are unique, baring some similarities to other internet subcultures and possible real world terrorists. At the same time the Incel subgroup do no operate the same way as other groups such as the alt-right, mens right activists and other online extremists groups.
+
+# Annotated Bibliography
+
+## Incel Theory and Philosophy
+
+@donnelly2001involuntary studies who are incels by identifying key aspects of their lives through a series of interviews with participants ranging as young as 18 to older married couples. @donnelly2001involuntary identified a common theme between participant, where participants have endured extended periods of no intimate contact with a mate. They continue by identifying another aspect of these participants where they had a delayed sexual and social development in their formative teen years.
+
+In @aulia2022phenomenon the research aimed in understanding the social phenomenon of Incels. Additionally, the author also seeks to establish "a better understanding of of the concept of the 'Red Pill'" [-@aulia2022phenomenon pp. 6] as a guide that explored the intersex of man from a post-feminism popular culture. The authors assert that most depictions of the Incel are within internet memes cultures and display traits that are lacking in perceived masculine traits and behaviors and in fact are depicted with "crippling insecurity" [-@aulia2022phenomenon]. In fact the authors attempt to understand the existence of this societal sub-group by explaining it through the "idea of masculinism", preferable "bio-social traits of men" and the "hierarchical structure" created from masculinity [-@aulia2022phenomenon].
+
+The results from this research showed that there is evidence supports the authors' previous assertions of Incel depiction in internet meme culture. Several memes, "Virgin vs Chad" and "Mentalcel" [-@aulia2022phenomenon pp. 14], that were observed for this research had clearly defined themes and characters that that created a in-group vs out-group comparison. The "alpha male" or "Chad" seen in these memes depict an ideal masculine that Incels both revile but aspire too. The object of their scorn and desire, women, are identified by the voluptuous "Stacy" character while the possible self insert character, "Virgin" are lacking in any desirable traits. From the results, we see Incels are characterized as lacking in major attractive physical, psychological and socioeconomic traits. There opposites are often a general caricatures of the deemed "other" who display traits that are idealized in the "Red Pill Theory" as ideal masculine traits (Chad) and a misogynist perspective of women. These memes are also fueled by rejection from women and society and further compounded by bullying from their own peer group which ultimately leads to developing dsymorphic behavior and creates even more "unattractive psychological traits" and a lack of "socioeconomic possession." The research concludes that the "correlation of these factors of celibacy" is endemic of the "hegemonical power of masculine domination manifests in hetero-normative masculinity" [-@aulia2022phenomenon pp. 14-15].
+
+In a research paper conducted by @glace2021taking through a feminist lens, they explore the Incel community and ideology and answer questions on (1) the Incel masculinity, (2) how Incel masculinity maps on to hybrid masculinities theory, (3) the determining new aspects to add to masculinities theory from understanding Incel masculinity and (4) other central ideas in understanding gender and society [see @glace2021taking pp. 290]. The author concludes that their initial hypothesis is supported though observing users on the Reddit group, r/Braincels, an Incel subreddit group. In the grouped the author observed users who identify as users distance themselves from established masculinity while upholding the same hegemonic standards. The authors continue their observation in regards to how Incels view themselves and others in a negative light.
+
+Another research by @lindsay2022swallowing was focused on exploring the Incel online groups worldview called the 'black pill' by using their language and cultural materials from their public facing forums. The "Black Pill" is used as a device for a shared sense of alienation and that it will facilitate "stochastic terrorism" [-@lindsay2022swallowing], a way for Incels to enact their own violent solutions on their perceived hated out-groups and the world. This, within the author's conclusion, identifies a "shared mythology of victimization."[-@lindsay2022swallowing]. The author takes note that these worldviews do not originate in isolation and are a part of a systemic structure that exists within our society which often go unchallenged. Groups with this level of inflammatory, racist, homophobic and misogynist ideology tend to be pushed are often persecuted by other users and pushed away from public spaces. The author's notes this recognizes the difficulty in tracking this group in part to their often "private and encrypted online spaces" but asserts the need for further studies in identifying the techniques used in their online culture.
+
+@stijelja2021psychosocial reviews, collects and dissert the psychological variables that relate to the incels identity and created a psychological profile of what an incel identity entails. Their profile shows that incels share several characteristics as being virgins and adults experiencing late sexual onset. Additionally, the author notices a detail on a particular incel discussion board that many topics are related to mental health and received a sizable attention while their discussions that are more aligned with hate speech did not receive the same amount.
+
+Another survey conducted by [@speckhard2021involuntary] collected and analyzed questionaire data from 312 participants from the largest and most active incel related forum to answer whether the general incel subculture represents a threat to others and society. The analyzed data showed that these online forums were a way for Incels to safely vent and listen to others. This contrasts Incels distrust of the mental health system. The authors inference of the data suggests that the Incel forums could be an effective new medium where mental and psychological help Incels directly.
+
+This article compiles several interviews with self-identified incels and their experiences generate themes to better illustrate their experiences [@daly2022think]. From the results we see interviews incels are diverse in thought and have levels to each member that can be divided into individual, cultural and societal factors that would drive them into the online community.
+
+@williams2021wanting is an exploratory analysis that focuses on the Incels intent to harm others in the pursuit of fulfilling their unmet sexual needs or revenge against those who they feel have wronged them. The analysis concludes to where the specific motivations such as revenge, power and hate are mostly directed at women first, then society which could ultimately drive them to perform planned violence against their perceived enemies.
+
+### Incels and Terrorism
+
+Radicalization is an integral part of joining niche and often times violent groups. With enough steps an ordinary member can turn into an violent extremist, willing to perform terrorists acts for the good of the groups ideals. @doosje2016 studies this radicalization process step-by-step from (1) sensitivity to group grievances and ideals, (2) becoming a member and finally (3) performing an action for the group. They concluded the study that the direct factors in the radicalization process occur on several levels: the individual, the group and society (micro, meso, macro). These levels, as mentioned by the authors, are crucial and must be taken into account when examining group process of radicalization.
+
+@tomkinson2020 argues that the Incel groups are violent extremists, local and state government should allocate more time and resources in preventing the next Incel attack and should previous attacks as lesson in mitigating the next attack. In their conclusion, @tomkinson2020 asserts that Incels are violent extremism thank to the actions of recent mass murders and pushes for governments in adopting public health plans that utilize different responses such as tackling the subculture and its communities, de-radicalizing members and surveillance.
+
+@cottee2020incel discusses the link to Incel inspired terrorism to the group and came to a conclusion where the groups is indeed filled with hateful rhetoric of women, and male who support them, the majority of the group does not push for actionable violence and violent rebellion against society. The author does clarify the Incel worldview does minimize the terrorist acts performed "but it does not ideologically justify" it either [see -@cottee2020incel pp. 108].
+
+An online survey was done assessing 274 Incels on their attitudes, beliefs, intentions, thoughts and personal history as it relates trauma and mental illness. The assessment said that a majority of the Incels sampled from this study rejected violence as an option (74%) the remaining minority indeed indulge in the idea and intent of violence with some fantasizing graphic situations. The survey further reported the majority did have a history of trauma (bullying, persecution) and mental illness that affected their prospects in life. The survey did make note that since the majority of Incels are non-violent the ones that initiate violence tend to be hyper-focused on by the news media and have been classified as terrorists. The authors in the survey advocate for more support groups to intervene before the violent minority within Incels act [see @moskalenko2022incel pp. 2, 20].
+
+### Incels on Social Media: Reddit, YouTube and Other Social Media Websites
+
+@labbaf2019united published an article that studied how incels form groups based on a shared rage against the other. In their summary, they note how the internet has changed how groups are formed and how Incels are no exception to this. They continue to note that the group creates their own echo chamber and are centered around a voluntary acceptance of their involuntary celibacy which includes emotions, communication, beliefs and values.
+
+These echo chambers can take many form, both in video and text format. One study explored YouTube as a growing platform for the Incel community, its evolution over the past 10 years and whether the YouTube's recommendation algorithm is pushing more Incel related content to its users. From the results of the study the authors note YouTube has had an increase in Incel activity over the past years with Incel related videos being recommended more frequently to consistent viewers of the content. @papadamou2021over concludes in the study that their has been a growth in Incel-related activity on the video platform in terms of published Incel videos and the subsequent comments and suggests that users are gravitating around the community at an increasing rate.
+
+In @gillett2022incels research was performed to analyse "the relationship between rules and cultures" and to develop governance measures that are suited to handling the "underlying cultural norms that foster and enable abuse." [-@gillett2022incels pp. 3] In the same line the authors assert that content moderation has problems when enforcing site wide rules when the moderation in question is resistant to accountability. This can be seen on the Reddit social media platform where the now banned Incel subreddits to show how Incels and the subreddit's moderators, a user who moderates the posts on comments on a subreddit, attempted to resist any attempts to abide by the social media platforms rules.
+
+In the conclusion, the authors state "large-scale content moderation is not the best way for major platforms." [@gillett2022incels]. This can be seen with the content moderators of these Incel subreddits who did not moderate the content posted in their group and actively gate kept outsiders from accessing and refuting their wild and often toxic claims and "turning inwards." The authors write, "the problem with Incels is Incels; the group cannot be separated from the toxic ideology that forms their shred identity." In a way, by them "prohibiting overt criticism" and suggestions of self-introspection on the reason why they are having difficulties in forming a sexual relationship they legitimize their claim of victim-hood and shifting blame to others outside their community. Eventually, Reddit soon banned the subreddit and most subsequent new groups related to Incels from the site that did not obey the community rules. However, the authors warn that by banning these groups from public facing sites it will further push Incels deeper into more private and obscure sites. [-@gillett2022incels pp. 18]
+
+@heritage2020incels seek to understand incels use language to construct ideologies around gender and sexuality while identifying what social actors are perceived by members of the community. The authors identified this process through normativity, a step where incels would identify themselves within the group as normal or within a normal range. The author continues on where this in-group normativity is in contrast to how incels also see them selves in relation to society, non-normative. They continue their conclusion by explaining that incels can then view certain men and all women outside of their group as social actors.
+
+@heritage2020incels continue further in their explanation of the social actors in incels non-normative view these specific men who conform well to society as the desired masculinity and in turn see themselves as less desirable in society due to this deficient conformity. The female actors do not get this treatment by incels. The authors note that the sexists language used on these forums show a frustration in incels at women and generally society and further asserts incels try to use this language to position themselves to some men as inferior in the normative society.
+
+@o2022exploration opens with their study on how extremism and the internet play a role in radicalizing groups into violence as seen in the Incel subculture. In their conclusion, they recognize the five normative orders within the Incel group that are part of the process in radicalizing new users: the sexual market, women are evil, that there is a legitimate ideal of masculinity, male oppression and finally violence. These five orders the authors identified are consistent with other extremists and terrorist groups orders used in indoctrinating and radicalizing new adherents.
+
+### The Incel Language and Lexicon on Reddit
+
+@jaki2019online analyzed the discourse on a popular Incel online forum in shedding light on Incel's affinity to violent extremism. In summary, the researchers demonstrated how to identify an online subculture by their language. They found that the subjected forum had various use of slang, a focus on physical appearance, hate speech, misogyny, homophobia and range of comments from violent/sexual fantasies to incitement of violence against the out-group. However, the author recognizes that some conversations were not in earnest and may be a tactic used to self enhance themselves.
+
+This study aims to unpack the ambiguous humor of Incel content which often masks the underlying toxic content of the media by identifying a lexicon within the media. The results show the the author identified a lexicon in Incel media by combining bigrams and trigrams of common terms used by incels into a glossary. The derived lexicon was clearly identifiable when compared to lexicon from other Reddit groups. [@gothard2021exploring]
+
+@van2021grievance established a "Grievance Dictionary" that can be used to measure, identify and catalog psychological and social concepts, and any threats of violence and abuse. The authors were successful in creating a resource that helps other researchers to study grievance fueled language and can detect the difference between violent and non-violent texts.
+
+In this study, the authors investigate how incelhood and incel-culture in these online communities help to represent and construct language and in turn incelhood and culture is represented and constructed by their language. The results at the end shows that through the interactions on these online forums incels have not only created their own language, "sociolect" and discourse patterns. What this means is that Incels have evolved further from just a share behaviors, beliefs, and specific cultural elements within the group.[@axelsson2021languages]
+
+@helm2022examining explored the online incel subculture through examining the comment content made in a now banned subreddit in the form of two datasets, a random set and a upvoted set. The findings showed comments from the random set had more incel talking points in these subreddit thread while comments that were randomly drawn from mostly positive votes had themes of challenging incel radicalization.
+
+In another study, the research aim was to study the shared experiences sentiments and expression of those who self-identify as Incel [@maxwell2020short pp. 1856]. The results from the research showed self-identified Incels are social isolation through social and romantic rejection which then reinforces negative thought patterns that soon dehumanize the rejecter, women. [-@maxwell2020short pp. 1872]
+
+In @costello2022levels we see the study's focus more on the mental well being of Incels. From the completion of the study they identified several key aspects of the mental state of Incels. They study asserts that Incels have worse mental state than the average internet user. This comes with a myriad of issues and mental illness and a general darker outlook on life. Some of these issues include loneliness, a disposition for interpersonal victimhood and sociosexuality. Another finding in the study was that Incels also identify being NEET. The authors closes on an new growing problem where groups will become harder to reach for mental health intervention.
+
+Another study by @Torregrosa2021 performed a extensive on on extremism by collection and analyzing NLP techniques applied to extremism study. The survey answered several questions (1) what extremism is and the related discourse, (2) the NLP tehcniques used to analyze text, (3) applications of those techniques and (4) the software tools and extremism datasets.
+
+@bridgelall2022application seeks to differentiate between terrorists aims and the root causes of terrorism using NLP to identify key features in stated motive narratives within perpetrators aim categories (PAC). In the academic world, there are several ways to identify terrorism based on perspective. The author then asserts that by classifying the attack aims it would bring another perspective and improve counterterrorism measures. Bridgelall creates several models and identifies most have good statistical performance but selected the XGB as best based on scores across the model criteria. They then conclude that several models can predict the PAC of terrorist's attacks with good accuracy and identified these PACs as to retaliate, intimidate, weaken, force, and despise an opposing political group, people or action. The author believes that the PAC's identified by the machine learning models can be used in furthering counter terrorism strategies against future attacks by deterrence [-@bridgelall2022application].
+
+@pelzer2021toxic also analyzed the online speech of Incels on three digital platforms where they attempt to measure 'hate levels' and identify who are they targeting with this hate speech. They concluded that most of the hate is directed at women, against other incels and men that they envy. The levels of hate vary from forum to forum ranging from misogyny and racism but most of the hate was self-hate. Interestingly, the authors were unable to measure the hate levels in there forums but did note it would be interesting to research toxic language development in new users.
+
+@sang2020analyzing studied the extent hate speech feature are present in comments posted by incels while exploring the post's title as a possible tool in understanding the poster's attitude towards other original incel media (screenshots). After processing the data using semantics analysis the authors results show frequent signs of negative emotions. A semantic link was discovered between word usage in incel speech and summary of the posters title.
+
+@hajarian2019snefl describes and analyzes the SNEFL dataset uses it to create a rule-based algorithm which selects users who believe women would not be attracted to them based on a 'fuzzy like' variable and later comapares the algorithm with other established algorithms. The results show that users who felt that women were not attracted to them had less likes than those who did. The author then asserts based on the extended comparison of different datasets the 'fuzzy like' concept is effective in identifying Incels.
+
+The quantitative article by @schmitz2022quantifying studies whether after a user joins a hateful subreddit will the user's speech will become more hateful outside of that subreddit. The summary of the data shows that using a ITS model the users speech was impacted and had an increase in hate speech. Three categories emerged in the users new speech: racism, misogyny and fat-shaming.
+
+Focusing on the language aspect of the incel subculture, several of the reviewed studies understand the Incel ideology and language has several factors that can entice curious and like minded users to ingest Incel content. The incel content and culture, itself would seem attractive to many lonely men with difficulties forming romantic connections as they accept a fatalist approach to life [@donnelly2001involuntary]. However, select studies by @schmitz2022quantifying and @pelzer2021toxic established a possible research questions that has merit in diving deeper. Can one measure the process of radicalization of a user on a subreddit after consistent interaction with Incel content? Also, Is it possible to calculate a cumulative radicalization value similar to what was suggested in @schmitz2022quantifying that takes into account previous lexicon and language studies in @hajarian2019snefl ? Therefore, this study proposes that exposure to common incel language and sentiments within Reddit groups will increase the users use of similar comments and posts in their online interactions thus leading to the radicalization process.
+
+\newpage
+
+# References
+
+::: {#refs custom-style="Bibliography"}
+:::

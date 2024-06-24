@@ -1,0 +1,73 @@
+---
+title: 'Final Report'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::include_graphics('./')
+```
+
+## Instructions
+
+The final document should be a knitted HTML/PDF/Word document from a Markdown file. You will turn in the knitted document. Be sure to spell and grammar check your work! For summary sections, do not simply copy your answers from the assignment. Write a coherent report of the analyses you did and the results you found. The following sections should be included (and make sure each section is clearly labeled):
+
+## Introduction
+
+Introduce your movie or TV show. Explain to the reader what the show is about, who are the main characters, and give a brief description of why you were interested in analyzing this set of text. (1-2 paragraphs)
+
+In this NLP project, I will be examining the Japanese animated television series Sword Art Online "SAO" by comparing the two available versions of the show, the original English dub of the series and the fan parody/abridge version. Sword Art Online is a 27 volume light-novel series written by Reki Kawahara that had its first anime adaptation in 2012. The anime series has a total of 3 seasons with season 1 (2012) having 26 episodes split into 2 story arcs. I will focus on season 1, episodes 1, 2, 5, 9, 12 and the mirrored abridged series episodes. By analyzing the Parts of Speech, Entity Recognition, Parsing, Classification and Sentiment we will compare the two bodies and identify the differences.
+
+Include your visualization from your executive session assignment and use this figure to help describe the summary to the reader. You can export the graphic from the assignment and use markdown to include it. Check out `knitr` and `include_graphics()` to import it into this document.
+
+### SAO Word Graphics (Subtitled)
+
+![Textplot of SAO (Subtitled)](./images/textplot_subs.png)
+
+![Word Frequency Plot of SAO (Subtitled)](./images/ggplot_subs.png)
+
+#### SAO Word Graphics (Abridged)
+
+![Textplot of SAO (Abridged)](./images/textplot_abrs.png)
+
+![Word Frequency of SAO (Abridged)](./images/ggplot_abrs.png)
+
+## Raw Processing and Part of Speech Analysis
+
+Summarize your results from the raw text and part of speech analysis section. What parts of the analysis did you struggle with? Do you have suggestions on better ways to implement what you did? What type of normalization procedure should one use for a NLP analysis? Did you have any surprises on the most common words or other parts of the analysis? (2 paragraphs)
+
+The two bodies of work had some challenges when processing the raw format of the files. For the subtitled file one hurdle that we had to face was converting the file type (ass) and extracting the dialogue lines. After extracting the dialogue we had to create regular expressions to remove a lot of the tagging used and any special characters used. We also had to remove some instances of commentary and comments made by the translator that did not belong. The abridged series was equally as difficult to extract as we initially thought the format of these transcripts were based on a widely used format (such as srt, vtf). Unfortunately, the format was native to the website these were extracted from. Once this was realized we focus on creating regular expressions patterns to remove the native tags and other special characters. In the future it would be better to find data that are in a consistent format to reduce preprocessing time. Despite this, the best normalization procedure is still to review the data and take note of certain formats and characters. If the data is in a recognizable format that can be parsed use an external module to parse and extract the text. If not possible using a regular expression to find and remove common tags works very well.
+
+In the Parts of Speech analysis we saw that the subtitle dataset had mostly 'NOUNS', 'VERB', 'PRON' and 'DET' as the majority while for the abridged version we saw that 'PUNCT', 'NOUN', 'VERB' and 'PRON' as the majority. Both datasets had overlapping actors, actions, adjectives and other POS which could indicate that the two versions do not differ much. Based solely on the POS results it would be difficult to say what either series are about but we can identify the main actors in both series being 'kirito', 'klein', 'asuna' and 'yui'.
+
+## NER and Parsing Analysis
+
+Summarize your results from the named entity recognition and parsing analysis section. Do you think WordNet would be a viable solution for solving the ambiguity/polysemy problem? What kinds of results did you see from spacy for entities? Are there obvious things missing that you might consider training your own model? What else might you do with these techniques? (2 paragraphs)
+
+In the NER/Parsing section we elected three common words from our previous POS analysis: 'beta', 'created', and 'gamer'. After using WordNet to find the words definition we searched both datasets and selected lines of dialogue that contained the word 'beta'. After selection we used the Lesk algorithm to select the closest semantic definition of 'beta'. The results from this matched our expected definition. Using the NLP function we generated the entity classification for each word. It should be noted that not all words were correctly labelled such as 'activate ad blocker' from the abridged version or 'griselda-san' as an organization or location. Another issue with the NER was that the previous processing was not properly done as some entities are a combination of NOUN + VERB. In the Parsing section we used 'beta' and 'game' to search the dependency trees of both the subs and abridged versions of the series and returned a table of their branches. For 'beta' we see that is is mostly a compound of 'tester'/'testers' while 'game' was mostly part of a prepositional object (pobj). This observation was consistent in both versions.
+
+WordNet is effective for at solving for some ambiguity/polysemy but in our experience context matters the most and more work should be done when review text. From our analysis, there were no obvious things missing. It could be possible to use common phrases or pairings in WordNet to find other dialogues.
+
+## Classification and Sentiment Analysis
+
+Summarize your results from the classification and sentiment analysis section. What are other things you might considering classifying from your text? Do you believe the sentiment analysis provided accurate results given your interpretation of the movie? What other analyses might you try to display sentiment? (2 paragraphs)
+
+The Clasification and Sentiment analysis is our final analysis of the two datasets. The results varied for both series versions as some of the classification models created failed to capture 'positive' or 'negative' matches using a list of popular words. The only model that produced results was Logistic Regression for the subtitled version for both TF-IDF and Word2Vec. The model's accuracy were significant greater than 60%. It was noted that there were some misclassifications in both version but this can be attributed to ambiguous sentence structure, dialogue being very long or a missing ROOT word. The Sentiment analysis faired better in both supervised and unsupervised. Overall, the models predicted a majority positive sentiment in both versions of the series. However, this could seen as over-fitting on the model. Using the movie review model we see more conservative predictions for sentiment in both versions of the series.
+
+The sentiment analysis for the abridged version of SAO was not surprising as it is a parody of the series. It can be said the sentiment scores from both versions are current from our perspective despite the idea of being trapped in a video game. This overall positive sentiment is based on the actions and interactions of characters in these versions. Additionally, deeper sentiments could be mined for other emotions like love, sarcasm or comedy.
+
+## Final Analysis
+
+Include a summary of your own proposed analyses from the last executive session here. Explain the analysis and results. (2 paragraphs)
+
+We planned to used analysis of our datasets would have been similar to what was done in previous assignments with certain modifications. In our own analysis we would avoid stemming our data and use depend more on cleaning the data. We also had to increase the amount of models, training and test datasets we would need to make as we analyzed two models.
+
+In our own analysis we see that both versions of Sword Art Online have multiple overlaps. In our Processing and POS analysis we see that there are common words in both versions with similar frequencies. Next in the NER and Parsing Analysis the two versions had similar entities identified and similar problems with misidentifications. Additionally, we discovered that dialogue in the abridged version varied in length and created long dependency branches. In the subtitled version the trees were shorter and had less word variations. Finally, in the Classification analysis most of our models failed to produce accuracy results for both versions. the Sentiment analysis faired better and gave a positive outlook of the versions.
+
+## Wrap Up
+
+Include a conclusion paragraph about the usefulness of NLP techniques to analyze text. Do we need complex models to transform and understand text? (1 paragraph)
+
+The process of analyzing text and gaining insights can be difficult based on the length and complexity of the material. Indeed, when developing machine learning models and the data and processing behind the data affects how well models perform. In regards to the techniques one may use in provessing the data The opinion of this grpup is that smaller and more general models work better at transforming and understanding text.

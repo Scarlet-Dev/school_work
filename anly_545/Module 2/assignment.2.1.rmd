@@ -1,0 +1,66 @@
+---
+title: "Module 2 - Working with Categorical Data 1"
+author: "Akane Simpson"
+date: '2022-03-30'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+setwd("~/hu_lectures/anly_545/Lecture 2/")
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+
+```{r Basic Data Wrangling, include=FALSE}
+base_form <- read.csv('./data.2.csv')
+
+summary(base_form)
+str(base_form)
+
+total_cases <- nrow(base_form)
+
+cleaned <- base_form[,-6]
+cleaned$stars <- factor(cleaned$stars)
+cleaned$race <- factor(cleaned$race)
+cleaned$restaurant <- factor(cleaned$restaurant)
+cleaned$sex <- factor(cleaned$sex)
+
+summary(cleaned)
+
+restrnt.names <- levels(cleaned$restaurant)
+restrnt.count <- cleaned %>% 
+  group_by(restaurant) %>% 
+  tally()
+restrnt.count <- restrnt.count$n
+restrnt.percnt <-  round((restrnt.count/total_cases)*100, 1)
+
+rest.freq <- data.frame(restaurant = restrnt.names,
+              count = restrnt.count,
+              percentage = restrnt.percnt)
+rest.freq <- rest.freq %>% 
+  arrange(., desc(count))
+```
+
+## Analysis (Opinion)
+
+1. The restaurants are displayed in the order they are because <u>they were ordered
+by the highest count (descending order). This allows readers to readily identify
+restaurants with the most customers</u>.
+
+2. The addition of the percentage column to the table allows the reader to see 
+<u>the distribution of customers between each restaurant</u>.
+
+## Table and Figures
+
+Find the total number of cases: <u>`r total_cases`</u>
+
+For each restaurant, find the total number of customers.
+
+```{r Restaurant Table, include=FALSE}
+table <- knitr::kable(rest.freq, caption = "Restaurant Customers", col.names = c("Restaurant", "Count", "Percentage"))
+```
+`r table`
+
+
+
+

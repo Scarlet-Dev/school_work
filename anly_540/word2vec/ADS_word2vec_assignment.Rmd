@@ -1,0 +1,168 @@
+---
+title: 'Word2Vec'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load the libraries + functions
+
+Load all the libraries or functions that you will use to for the rest of the assignment. It is helpful to define your libraries and functions at the top of a report, so that others can know what they need for the report to compile correctly.
+
+```{r libaries}
+##r chunk
+library(reticulate)
+```
+
+Load the Python libraries or functions that you will use for that section. 
+
+```{python}
+##python chunk
+import pandas as pd
+import numpy as np
+from bs4 import BeautifulSoup
+import html
+import re
+import nltk
+from gensim.models.fasttext import FastText
+from nltk.corpus import stopwords
+from sklearn.metrics import classification_report
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+
+REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]') #remove symbols with space
+BAD_SYMBOLS_RE = re.compile('[^0-9a-z #+_]') #take out symbols altogether
+STOPWORDS = set(stopwords.words('english')) #stopwords
+
+def clean_text(text):
+    text = BeautifulSoup(text, "html").text # HTML decoding
+    text = text.lower() # lowercase text
+    text = REPLACE_BY_SPACE_RE.sub(' ', text) # replace REPLACE_BY_SPACE_RE symbols by space in text
+    text = BAD_SYMBOLS_RE.sub('', text) # delete symbols which are in BAD_SYMBOLS_RE from text
+    text = ' '.join(word for word in text.split() if word not in STOPWORDS) # delete stopwords from text
+    return text
+
+def document_vectorizer(corpus, model, num_features):
+    vocabulary = set(model.wv.index_to_key)
+    
+    def average_word_vectors(words, model, vocabulary, num_features):
+        feature_vector = np.zeros((num_features,), dtype="float64")
+        nwords = 0.
+        
+        for word in words:
+            if word in vocabulary: 
+                nwords = nwords + 1.
+                feature_vector = np.add(feature_vector, model.wv[word])
+        if nwords:
+            feature_vector = np.divide(feature_vector, nwords)
+
+        return feature_vector
+
+    features = [average_word_vectors(tokenized_sentence, model, vocabulary, num_features)
+                    for tokenized_sentence in corpus]
+    return np.array(features)
+```
+
+## The Data
+
+The dataset is a set of Youtube comments that have been coded as:
+  - 1: spam youtube messages 
+  - 0: good youtube messages
+  - This data is stored in the `CLASS` column
+
+Import the data using either R or Python. I put a Python chunk here because you will need one to import the data, but if you want to first import into R, that's fine. 
+
+```{python}
+##python chunk
+df = pd.read_csv('youtube_spam.csv')
+df["CONTENT"].head()
+```
+
+## Clean up the data
+
+Use one of our clean text functions to clean up the `CONTENT` column in the dataset. 
+
+```{python}
+##python chunk
+df["CONTENT"] = df["CONTENT"].apply(clean_text)
+df["CONTENT"].head()
+```
+
+## Split the data
+
+Split the data into testing and training data.
+
+```{python}
+##python chunk
+X = df["CONTENT"]
+Y = df["CLASS"]
+
+x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size = 0.20, random_state = 876)
+```
+
+## Process the data
+
+For FastText OR word2vec, create the tokenized vectors of the text.
+
+```{python}
+##python chunk
+tokenized_train = [nltk.tokenize.word_tokenize(text) for text in x_train.to_list()]
+tokenized_test = [nltk.tokenize.word_tokenize(text) for text in x_test.to_list()]
+```
+
+## Build Model
+
+Build either a word2vec or FastText model.
+
+```{python}
+##python chunk
+ft_model = FastText(tokenized_train, vector_size = 100, window = 6, min_count = 2, epochs = 5, seed = 876,  workers = 4)
+```
+
+## Convert the model
+
+Convert the model into a set of features to use in our classifier. 
+
+```{python}
+##python chunk
+avg_ft_train_features = document_vectorizer(corpus=tokenized_train, model=ft_model,
+                                                     num_features=100)
+avg_ft_test_features = document_vectorizer(corpus=tokenized_test, model=ft_model,
+                                                    num_features=100)    
+```
+
+## Build a classifier model
+
+In class, we used logistic regression to classify the data. You can use any machine learning algorithm you want here, and build a classification model. 
+
+```{python}
+##python chunk
+logreg = LogisticRegression(solver='lbfgs', multi_class='ovr', max_iter=10000)
+logreg = logreg.fit(avg_ft_train_features, y_train)
+y_pred = logreg.predict(avg_ft_test_features)
+```
+
+## Examine the results
+
+Print out the accuracy, recall, and precision of your model.
+
+```{python}
+##python chunk
+print('accuracy %s' % accuracy_score(y_pred, y_test))
+print(classification_report(y_test, y_pred,target_names=["good", "spam"]))
+```
+
+## Discussion Questions
+
+- How well did the model you build do? What could you do to improve the accuracy of the model? (Interpret the model in at least 5 sentences)
+
+  - ANSWER: The model performed moderately well in this analysis. The measured accuracy of this FastText model was 64.5% it scored slightly well on recall for good comments (55%) and scored well on spam comments (73%). The average precision and F1 score for both outcomes was 64%. To improve this model we could resampling the training and testing data, cleaning text further by including lemmatization or by changing the number of features used in our document vectorization. Additionally, a change in model (FastText -> Word2Vec) and altering the classifier could help improve the model performance. 
+
+- Describe a set of texts and research question that interests you that could be explored using this method. Basically, what is a potential application of this method to another area of research?
+
+  - ANSWER: One set of texts that would use as research is the examining genres in popular video games. A research question one could pose is whether the tastes and needs of American gamers have changed over the past decade. To do this we could create a list of popular video games (domestic and foreign) and tabulate their user rating, music, gameplay, origin, platform and other systems and decimal numbers as part of a rating system. From there we can create a model that has a binary of liked vs hated with a cutoff of 5.0. This model can then predict the most likely game a avid gamer may choose based on their likes and dislikes. This could be helpful as part of a recommendation system on online gaming platforms and tech websites.

@@ -1,0 +1,299 @@
+---
+title: "Data Cleaning and Clustering"
+author: "Yuan Ji"
+date: "2022/1/28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages}
+library(readxl)
+library(stringr)
+library(dplyr)  
+library(dendextend)
+library(data.table) 
+library(ggplot2)
+```
+
+## Load Raw COVID Data (With Data Cleaning)
+
+Load Raw COVID-19 cases data 
+```{r load data}
+covid_data <- read.csv("covid_data.csv")
+```
+
+Remove data where continent is empty, save it as COVID time series data for later use
+```{r data cleaning}
+covid_data_ts <- covid_data[covid_data$continent!='',]
+```
+
+## Clustering Analysis
+
+Generate country information summary data set, which will be used for clustering analysis
+```{r summary}
+country_col <- c( 'continent',
+                  'location',
+                  'population',
+                  'population_density',
+                  'median_age',
+                  'aged_65_older',
+                  'aged_70_older',
+                  'gdp_per_capita',
+                  'extreme_poverty',
+                  'cardiovasc_death_rate',
+                  'diabetes_prevalence',
+                  'female_smokers',
+                  'male_smokers',
+                  'handwashing_facilities',
+                  'hospital_beds_per_thousand',
+                  'life_expectancy',
+                  'human_development_index')
+
+covid_data_country <- covid_data_ts [,country_col]
+covid_data_country <- distinct(covid_data_country)
+
+#summary(covid_data_country)
+
+# hand washing facilities and extreme property are the attributes which have too many NAs, we remove this features
+country_col <- c( 'continent',
+                  'location',
+                  'population',
+                  'population_density',
+                  'median_age',
+                  'aged_65_older',
+                  'aged_70_older',
+                  'gdp_per_capita',
+                  'cardiovasc_death_rate',
+                  'diabetes_prevalence',
+                  'female_smokers',
+                  'male_smokers',
+                  'hospital_beds_per_thousand',
+                  'life_expectancy',
+                  'human_development_index')
+covid_data_country <- covid_data_country[,country_col]
+
+# Exam the percentages for missing values for each country
+missSum <- function(x){ sum(is.na(x)) }
+missing <- apply(covid_data_country, 1, missSum)
+
+# Final Country data set with no missing values
+covid_data_country <- subset(covid_data_country, missing <=0)
+
+summary(covid_data_country)
+```
+Since we have over one hundred countries remain in our dataset after data cleaning, we have to further explore the relationship between countries by clustering them into groups. Then it would be easier to pick a few pairs of countries to compare their daily active COVID cases, vaccine rate, etc.
+
+K-Means Clustering whole procedure
+```{r}
+set.seed(1111)
+
+feature_col <- c( 'population',
+                  'population_density',
+                  'median_age',
+                  'aged_65_older',
+                  'aged_70_older',
+                  'gdp_per_capita',
+                  'cardiovasc_death_rate',
+                  'diabetes_prevalence',
+                  'female_smokers',
+                  'male_smokers',
+                  'hospital_beds_per_thousand',
+                  'life_expectancy',
+                  'human_development_index')
+
+country_kmean = covid_data_country[,-c(1,2)]
+
+
+#standardize the variables
+country_standard <- country_kmean %>% mutate_at(feature_col, ~(scale(.) %>% as.vector))
+
+# K mean algorithm applying
+kmeansObj <- kmeans(country_standard,iter.max = 500, centers=4)
+# Add the Kmean group result into country data
+covid_data_country$group = kmeansObj$cluster
+
+# Check how many countries are there in each group
+kmeansObj$size
+
+#group by continent and country
+
+country_kmean_group <-covid_data_country %>%
+                     group_by(group) %>%
+                     summarise_at(vars(population,
+                                       population_density,
+                                       median_age,
+                                       aged_65_older,
+                                       aged_70_older,
+                                       gdp_per_capita,
+                                       cardiovasc_death_rate,
+                                       diabetes_prevalence,
+                                       female_smokers,
+                                       male_smokers,
+                                       hospital_beds_per_thousand,
+                                       life_expectancy,
+                                       human_development_index), 
+                     list(name = mean))
+
+
+```
+
+
+Pick the 5 countries with highest population from each group to get my finalized country list (Result get from the data set Covid_data_country)
+Group1 : United States, Japan, Germany, United Kingdom, France
+Group2 : China, India, Indonesia, Bangladesh, Russia
+Group3 : Pakistan, Ethiopia, Tanzania ,  South Africa,Kenya,
+Group4 : Brazil, Mexico, Egypt, Turkey, Iran
+
+```{r filtering country}
+country_list <- c('United States', 
+                  'Japan', 
+                  'Germany', 
+                  'United Kingdom', 
+                  'France',
+                  'China', 
+                  'India', 
+                  'Indonesia', 
+                  'Bangladesh', 
+                  'Russia',
+                  'Pakistan', 
+                  'Ethiopia', 
+                  'Tanzania', 
+                  'Kenya',
+                  'South Africa',
+                  'Brazil',
+                  'Mexico', 
+                  'Egypt', 
+                  'Turkey', 
+                  'Iran')
+
+covid_data_country_select <-covid_data_country[
+                         covid_data_country$location %in% country_list,] 
+  #                       
+
+```
+
+
+
+Hierarchial Clutering analysis for countries to further analysis the result
+
+
+```{r clustering}
+
+#Pre-process data
+#Use person names as row names - creates plot labels
+row.names(covid_data_country_select) = covid_data_country_select$location
+
+#Drop first two columns
+covid_data_country_hclust = covid_data_country_select[,-c(1,2)]
+#standardize the variables
+country_standard_hclust <- covid_data_country_hclust %>% mutate_at(feature_col, ~(scale(.) %>% as.vector))
+
+#Hierarchical Clustering
+
+#Calculate dendrogram
+dendrogram =as.dendrogram(
+      hclust(
+        dist(
+        country_standard_hclust
+      )
+    )
+  )
+#Plot dendrogram
+plot(dendrogram,main="Dendrogram for clustering countries",ylab= 'Distances')
+
+```
+## Time Series Plotting
+
+Some initial analysis by plotting Time Series Analysis between pairs of countries based on clustering result
+
+
+Pair One : UK and France (compare within same groups)
+```{r uk vs france}
+#Plot new cases
+sub <- covid_data_ts[covid_data_ts$location %in% c('United Kingdom','France')
+                     ,c('date','location','new_cases_smoothed','new_vaccinations_smoothed')]
+sub$date <- as.Date(sub$date, format="%Y-%m-%d")
+
+sub <- sub[(sub$date>"2020-03-01") &(sub$date<="2021-12-31"),]
+
+# Plot for daily new cases
+
+new_cases_plot <- ggplot(sub, aes(x=date, y=new_cases_smoothed, color=location)) +
+  geom_line() + 
+  labs(x = 'Date', y = 'Active New Cases', title ='Smoothed Daily New Cases (7 days average)')
+  
+new_cases_plot
+
+# Plot for daily Vaccinations
+sub <- sub[(sub$date>"2021-01-01") &(sub$date<="2021-12-31"),]
+new_vacc_plot <- ggplot(sub, aes(x=date, y=new_vaccinations_smoothed, color=location)) +
+  geom_line() + 
+  labs(x = 'Date', y = 'New Vaccinations Amount', title ='Smoothed Daily New Vaccinations (7 days average)')
+  
+new_vacc_plot
+```
+
+
+Pair Two : USA and Indonesia (compare between two countries with similar population but in different group)
+
+```{r usa vs Indonesia}
+#Plot new cases
+sub <- covid_data_ts[covid_data_ts$location %in% c('United States','Indonesia')
+                     ,c('date','location','new_cases_smoothed','new_vaccinations_smoothed')]
+sub$date <- as.Date(sub$date, format="%Y-%m-%d")
+
+sub <- sub[(sub$date>"2020-03-01") &(sub$date<="2021-12-31"),]
+
+# Plot for daily new cases
+
+new_cases_plot <- ggplot(sub, aes(x=date, y=new_cases_smoothed, color=location)) +
+  geom_line() + 
+  labs(x = 'Date', y = 'Active New Cases', title ='Smoothed Daily New Cases (7 days average)')
+  
+new_cases_plot
+
+# Plot for daily Vaccinations
+sub <- sub[(sub$date>"2021-01-01") &(sub$date<="2021-12-31"),]
+new_vacc_plot <- ggplot(sub, aes(x=date, y=new_vaccinations_smoothed, color=location)) +
+  geom_line() + 
+  labs(x = 'Date', y = 'New Vaccinations Amount', title ='Smoothed Daily New Vaccinations (7 days average)')
+  
+new_vacc_plot
+
+```
+
+Pair Three : Japan and Iran ( compare two countries with the max distance from dendrogram)
+
+```{r japan vs Iran}
+#Plot new cases
+sub <- covid_data_ts[covid_data_ts$location %in% c('Japan','Iran')
+                     ,c('date','location','new_cases_smoothed','new_vaccinations_smoothed')]
+sub$date <- as.Date(sub$date, format="%Y-%m-%d")
+
+sub <- sub[(sub$date>"2020-03-01") &(sub$date<="2021-12-31"),]
+
+# Plot for daily new cases
+
+new_cases_plot <- ggplot(sub, aes(x=date, y=new_cases_smoothed, color=location)) +
+  geom_line() + 
+  labs(x = 'Date', y = 'Active New Cases', title ='Smoothed Daily New Cases (7 days average)')
+  
+new_cases_plot
+
+# Plot for daily Vaccinations
+sub <- sub[(sub$date>"2021-01-01") &(sub$date<="2021-12-31"),]
+new_vacc_plot <- ggplot(sub, aes(x=date, y=new_vaccinations_smoothed, color=location)) +
+  geom_line() + 
+  labs(x = 'Date', y = 'New Vaccinations Amount', title ='Smoothed Daily New Vaccinations (7 days average)')
+  
+new_vacc_plot
+
+```
+```{r}
+
+
+```
+There could be other pairs/groups of countries we are interested to research for the next step.

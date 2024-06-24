@@ -1,0 +1,142 @@
+---
+title: 'Assignment #2'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(rethinking)
+```
+
+## Chapter 3 - Sampling the Imaginary
+
+This chapter introduced the basic procedures for manipulating posterior distributions.  Our fundamental tool is samples of parameter values drawn from the posterior distribution.  These samples can be used to produce intervals, point estimates, posterior predictive checks, as well as other kinds of simulations. Posterior predictive checks combine uncertainty about parameters, as described by the posterior distribution, with uncertainty about outcomes, as described by the assumed likelihood function. These checks are useful for verifying that your software worked correctly.  They are also useful for prospecting for ways in which your models are inadequate.
+
+
+Place each answer inside the code chunk (grey box).  The code chunks should contain a text response or a code that completes/answers the question or activity requested. Make sure to include plots if the question requests them. 
+
+Finally, upon completion, name your final output `.html` file as: `YourName_ANLY505-Year-Semester.html` and publish the assignment to your R Pubs account and submit the link to Canvas. Each question is worth 5 points
+
+
+## Questions
+
+**3-1.** Suppose the globe tossing data had turned out to be 8 water in 15 tosses. Construct the posterior
+distribution, using grid approximation. Plot the posterior. Use the same flat prior as before.
+
+```{r 3-1}
+p_grid <- seq(from = 0, to = 1, length.out = 1000)
+priors <- rep(1, 1000)
+
+water_likehood <- dbinom(8, 15, p_grid)
+
+pososterior <- water_likehood * priors
+pososterior <- pososterior/sum(pososterior)
+```
+
+
+```{r 3-1.1}
+plot(p_grid, pososterior, ylab = 'Posterior', xlab = 'Proportion of Water', type="l")
+```
+
+**3-2.** Draw 10,000 samples from the grid approximation from above. Then use the samples to calculate
+the 90% HPDI for p.
+
+```{r 3-2}
+set.seed(100)
+samples <- sample(x = p_grid, size = 1e4, prob = pososterior, replace = TRUE)
+
+HPDI(samples, 0.9)
+```
+
+
+**3-3.** Construct a posterior predictive check for this model and data. This means simulate the distribution
+of samples, averaging over the posterior uncertainty in p. What is the probability of observing
+8 water in 15 tosses?
+
+```{r 3-3}
+w <- rbinom(n = 1e4, size = 15, prob = samples)
+mean(w == 8)
+```
+
+**3-4.** Using the posterior distribution constructed from the new (8/15) data, now calculate the probability
+of observing 6 water in 9 tosses.
+
+```{r 3-4}
+u <- rbinom(n = 1e4, size = 9, prob = samples)
+mean(w == 6)
+```
+
+**3-5.** Start over at 3-1, but now use a prior that is zero below p = 0.5 and a constant above p = 0.5.
+This corresponds to prior information that a majority of the Earth’s surface is water. Repeat each
+problem above and compare the inferences. Plot the posterior. What difference does the better prior make? If it helps,
+compare inferences (using both priors) to the true value p = 0.7.
+
+```{r 3-5.1}
+pgrd <- seq(from = 0, to = 1, length.out = 1000)
+priors <-  ifelse(pgrd < 0.5, 0, 1)
+
+new_water_likelehood <- dbinom(x = 8, size = 15, prob = pgrd)
+
+new_pstrir <- new_water_likelehood * priors
+new_pstrir <- new_pstrir/sum(new_pstrir)
+```
+
+
+```{r 3-5.1.1}
+plot(pgrd, new_pstrir, xlab = "Proportion of Water", ylab = "Posterior Density", type="l")
+```
+
+
+```{r 3-5.2}
+set.seed(100)
+
+smpls <- sample(x = pgrd, size = 1e4, prob = new_pstrir, replace = TRUE)
+HPDI(smpls, prob = 0.9)
+```
+
+```{r 3-5.3}
+z <- rbinom(1e4, 15, prob = smpls)
+mean(z == 8)
+```
+
+```{r 3-5.4}
+q <- rbinom(1e4, 9, prob = smpls)
+mean(q == 6)
+```
+
+__The new priors using the new samples are somewhat more precise than the previous readings calculated in the earlier questions.__
+
+**3-6.** Suppose you want to estimate the Earth’s proportion of water very precisely. Specifically, you
+want the 99% percentile interval of the posterior distribution of p to be only 0.05 wide. This means
+the distance between the upper and lower bound of the interval should be 0.05. How many times will
+you have to toss the globe to do this?
+
+```{r 3-6}
+# In this question we need to calculate the amount of times a globe must be tossed
+# To do this we will need to assume to variables: 
+# N for number of tosses and
+# tr_p the true probability which we can find in the earlier question (3.5)
+
+# We know our tr_p to be 0.7
+tr_p <- 0.7
+
+# But for N we can use any number of tosses(Changing the N will affect the interval)
+N <- 50
+
+# Now we can calculate how many tosses (using our earlier variables pgrd, priors)
+
+toss_likelihood <- dbinom(round(N * tr_p), size = N, prob = pgrd)
+pstr <- toss_likelihood * priors
+pstr <- pstr / sum(pstr)
+
+n_smpls <- sample(pgrd, size = N, replace = TRUE)
+
+# After we have found the samples then must reduce the interval to 0.99
+interval <- PI(n_smpls, prob = 0.99)
+names(interval) <- NULL # We null the names since they are not necessary
+
+diff(interval) #Used to find the difference between the two points in the vector
+```
+

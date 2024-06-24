@@ -1,0 +1,926 @@
+---
+title: 'ANLY 520 Course Project'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+R Imports
+```{r}
+library(reticulate)
+library(dplyr)
+library(widyr)
+library(tagger)
+library(tokenizers)
+
+library(ggplot2)
+library(quanteda)
+library(quanteda.textplots)
+library(quanteda.textstats)
+library(tidytext)
+```
+
+
+Python Imports
+```{python}
+# base libraries
+import re
+import os
+import math
+from collections import OrderedDict
+from os.path import basename
+import ass
+from pprint import pprint
+
+import spacy
+from nltk.probability import FreqDist
+
+# for the lexicons
+import textblob
+from afinn import Afinn
+#load the model 
+afn = Afinn(emoticons=True)
+
+# ML
+import sklearn
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
+from sklearn.naive_bayes import MultinomialNB
+
+# test feature extraction
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+import gensim
+
+# text normalization
+import nltk
+from nltk import tokenize
+from nltk.tokenize import word_tokenize
+from nltk.wsd import lesk
+from nltk.corpus import wordnet as wn
+from nltk.corpus import wordnet_ic
+semcor_ic = wordnet_ic.ic('ic-semcor.dat')
+from nltk.stem import PorterStemmer
+import pandas as pd
+import numpy as np
+pd.set_option('display.max_colwidth', None)
+ps = PorterStemmer()
+import contractions
+import unicodedata
+```
+
+
+```{python}
+def document_vectorizer(corpus, model, num_features):
+    vocabulary = set(model.wv.index_to_key)
+    def average_word_vectors(words, model, vocabulary, num_features):
+        feature_vector = np.zeros((num_features,), dtype="float64")
+        nwords = 0.
+        for word in words:
+            if word in vocabulary: 
+                nwords = nwords + 1.
+                feature_vector = np.add(feature_vector, model.wv[word])
+        if nwords:
+            feature_vector = np.divide(feature_vector, nwords)
+        return feature_vector
+    features = [average_word_vectors(tokenized_sentence, model, vocabulary, num_features)
+                    for tokenized_sentence in corpus]
+    return np.array(features)
+
+STOPWORDS = set(nltk.corpus.stopwords.words('english')) #stopwords
+STOPWORDS.remove('no')
+STOPWORDS.remove('but')
+STOPWORDS.remove('not')
+
+def clean_text(text):
+    # text = BeautifulSoup(text).get_text() #html
+    text = text.lower() #lower case
+    text = contractions.fix(text) #contractions
+    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8', 'ignore') #symbols
+    #text = ' '.join([ps.stem(word) for word in text.split()]) #stem
+    text = ' '.join(word for word in text.split() if word not in STOPWORDS) # stopwords
+    return text
+
+def get_semantic(seq, key_word):
+      # Tokenization of the sequence
+    temp = word_tokenize(seq)
+      
+    # Retrieving the definition 
+    # of the tokens
+    temp = lesk(temp, key_word)
+    return temp.definition()
+```
+
+
+```{python}
+subs = {}
+spath='./subs/'
+sfilelist = os.listdir(spath)
+
+for fl in sfilelist:
+    with open(spath + fl, 'r', encoding='utf_8_sig') as f:
+        fname = basename(fl)
+        key = fname[-6:-4]
+        ep = ass.parse(f)
+        subs[key] = ep
+
+subs = OrderedDict(sorted(subs.items()))
+del spath, sfilelist, fl, f, fname, key, ep, ass
+```
+
+
+```{python}
+abrs = {}
+apath='./abridged/'
+afilelist = os.listdir(apath)
+
+for fl in afilelist:
+    with open(apath + fl, 'r', encoding='utf_8_sig') as f:
+        fname = basename(fl)
+        key = fname[-6:-4]
+        abrs[key] = f.readlines()
+
+abrs = OrderedDict(sorted(abrs.items()))
+del apath, afilelist, fl, fname, key, f
+```
+
+```{python}
+del OrderedDict, os, basename
+```
+
+
+```{python}
+## Extract the dialogue from this Event section
+
+dialogue_sections = []
+dialogues = []
+texts = []
+
+for k in subs.keys():
+    dialogue_sections.append([subs[k].sections['Events']])
+    
+for dialogue in dialogue_sections:
+    for dia in dialogue:
+        dia = dia[333:]
+        dialogues.append(dia)
+        for d in dia:
+            texts.append(d.text[:-1])
+            
+subs_dialogue = pd.DataFrame({"dialogue" : texts})
+
+del dialogue_sections, dialogues, dialogue, texts, k, dia, d
+```
+
+```{python}
+BAD_CHARS = ['\{', '\}', r'\\']
+pat_s = '|'.join(BAD_CHARS)
+
+found_s = subs_dialogue[subs_dialogue.dialogue.str.contains(pat_s)]
+print(found_s.index)
+```
+
+```{python}
+# Drop bad rows
+subs_dialogue = subs_dialogue.drop(322)
+subs_dialogue = subs_dialogue.drop(range(494, 496))
+subs_dialogue = subs_dialogue.drop(range(691, 1798))
+subs_dialogue = subs_dialogue.drop(range(2072, 2075))
+subs_dialogue = subs_dialogue.drop(range(2228, 2231))
+
+# subs_dialogue = subs_dialogue.reset_index()
+del found_s, BAD_CHARS, pat_s
+```
+
+
+```{python}
+transcript_sections = []
+transcripts = []
+texts = []
+
+for k in abrs.keys():
+    transcript_sections.append(abrs[k])
+
+for transcript  in transcript_sections:
+    transcripts.append('\n'.join(transcript))
+    for tran in transcript:
+            texts.append(tran)
+
+abrs_dialogue = pd.DataFrame({"dialogue": texts})
+del transcript_sections, transcripts, texts, k, transcript, tran 
+```
+
+```{python}
+BAD_WORDS = ['Outro', 'Transcriptbox', 'TranscriptH', 'Transcriptnav', 'Category']
+pat_a = '|'.join(BAD_WORDS)
+
+found_a = abrs_dialogue[abrs_dialogue.dialogue.str.contains(pat_a)]
+print(found_a.index)
+```
+
+```{python}
+# Drop Transcript nav rows
+
+abrs_dialogue = abrs_dialogue.drop([0,1])
+abrs_dialogue = abrs_dialogue.drop(10)
+abrs_dialogue = abrs_dialogue.drop(164)
+abrs_dialogue = abrs_dialogue.drop(range(166,172))
+abrs_dialogue = abrs_dialogue.drop(172)
+abrs_dialogue = abrs_dialogue.drop(187)
+abrs_dialogue = abrs_dialogue.drop(398)
+abrs_dialogue = abrs_dialogue.drop(range(400,406))
+abrs_dialogue = abrs_dialogue.drop(406)
+abrs_dialogue = abrs_dialogue.drop(432)
+abrs_dialogue = abrs_dialogue.drop(range(678,685))
+abrs_dialogue = abrs_dialogue.drop(708)
+abrs_dialogue = abrs_dialogue.drop(908)
+abrs_dialogue = abrs_dialogue.drop(range(911,917))
+abrs_dialogue = abrs_dialogue.drop([917, 918])
+abrs_dialogue = abrs_dialogue.drop(range(1041,1045))
+
+# abrs_dialogue = abrs_dialogue.reset_index()
+del found_a, BAD_WORDS, pat_a
+```
+
+
+```{python}
+# {\\\w.}
+# {(\w.*)
+# {(\W.*)
+def remove_sub_tags(row):
+    wsub_patterns = [r'{(\w.*?)}', r'{(\W.*?)}', r'{(\w.*)', r'\\(\w)', r'{(\W.*\w.)', r'\\']
+    s_patterns = '|'.join(wsub_patterns)
+    s_matched = re.compile(s_patterns)
+    row = re.sub(s_matched, '', row)
+    return row
+
+def remove_abr_tags(row):
+    abr_patterns = [r'^{{TD\|\|', r'^{{\w.\|(\w.*?)\|', r'{{\w.\|\W.*?\||', r'^{{TD\|\w* \w\|', r'^{{TD\|\w*\|', r'\|\w*\W*\w*}}', r'}}', r'<(\w.*?)>',
+    r'</(\w.*?)>', r'\[\[', r'\]\]', r'\*', r'\\n', r'\|']
+    a_patterns = '|'.join(abr_patterns)
+    a_matched = re.compile(a_patterns)
+    row = re.sub(a_matched, '', row)
+    return row
+
+```
+
+
+```{python}
+subs_dialogue["dialogue_untagged"] = subs_dialogue["dialogue"].apply(remove_sub_tags)
+subs_dialogue["dialogue_untagged"].to_csv('./exports/subs_dialogue.csv', index = False, header = True)
+
+del subs, remove_sub_tags
+```
+
+
+```{python}
+abrs_dialogue["dialogue_untagged"] = abrs_dialogue["dialogue"].apply(remove_abr_tags)
+abrs_dialogue["dialogue_untagged"].to_csv('./exports/abrs_dialogue.csv', index = False, header = True)
+
+del abrs, remove_abr_tags
+```
+
+
+## Data Normalization
+```{python}
+subs_dialogue["lower_dialogue"] = subs_dialogue["dialogue_untagged"].apply(str.lower)
+subs_dialogue["clean_dialogue"] = subs_dialogue["dialogue_untagged"].apply(clean_text)
+```
+
+```{python}
+abrs_dialogue["lower_dialogue"] = abrs_dialogue["dialogue_untagged"].apply(str.lower)
+abrs_dialogue["clean_dialogue"] = abrs_dialogue["dialogue_untagged"].apply(clean_text)
+```
+
+## Parts of Speech
+
+```{python import py speech tagger}
+nlp = spacy.load("en_core_web_sm")
+
+s_dia = ' '.join(subs_dialogue["lower_dialogue"])
+subs_spacy_pos_tagged = [(word, word.tag_, word.pos_) for word in nlp(s_dia)]
+
+a_dia = ' '.join(abrs_dialogue["lower_dialogue"])
+abrs_spacy_pos_tagged = [(word, word.tag_, word.pos_) for word in nlp(a_dia)]
+
+subs_spacyDF = pd.DataFrame(subs_spacy_pos_tagged, columns = ["token", "specific_pos", "pos"])
+abrs_spacyDF = pd.DataFrame(abrs_spacy_pos_tagged, columns = ["token", "specific_pos", "pos"])
+
+del subs_spacy_pos_tagged, abrs_spacy_pos_tagged
+```
+
+```{python}
+subs_spacyDF.head()
+subs_spacyDF.tail()
+```
+
+
+```{python}
+abrs_spacyDF.head()
+abrs_spacyDF.tail()
+```
+
+```{python }
+s_fd = FreqDist()
+
+for pos_s in subs_spacyDF["pos"]:
+    s_fd[pos_s] += 1
+
+s_fd.tabulate()
+del pos_s, s_fd
+```
+
+```{python}
+a_fd = FreqDist()
+
+for pos_a in abrs_spacyDF["pos"]:
+    a_fd[pos_a] += 1
+
+a_fd.tabulate()
+del pos_a, a_fd
+```
+
+```{python}
+del FreqDist
+```
+
+
+```{python}
+crosstab_subs = pd.crosstab(index=subs_spacyDF['token'], columns = subs_spacyDF['pos'])
+crosstab_subs.to_csv('./crosstabs/subs.csv')
+```
+
+```{python}
+crosstab_abrs = pd.crosstab(index=abrs_spacyDF['token'], columns = abrs_spacyDF['pos'])
+crosstab_subs.to_csv('./crosstabs/abrs.csv')
+```
+
+```{python}
+del crosstab_abrs, crosstab_subs
+```
+
+
+## Data Visualization
+
+```{r}
+subs_texts <- py$s_dia
+abrs_texts <- py$a_dia
+```
+
+
+```{r}
+subs_tokens <- tokens(x = subs_texts,
+                      remove_punct = TRUE,
+                      remove_symbols = TRUE,
+                      remove_numbers = TRUE)
+subs_tokens <- tokens_select(subs_tokens, pattern = stopwords("en"), selection="remove")
+
+subs_dfm <- dfm(subs_tokens)
+```
+
+
+```{r}
+abrs_tokens <- tokens(x = abrs_texts,
+                      remove_punct = TRUE,
+                      remove_symbols = TRUE,
+                      remove_numbers = TRUE)
+abrs_tokens <- tokens_select(abrs_tokens, pattern = stopwords("en"), selection="remove")
+
+abrs_dfm <- dfm(abrs_tokens)
+```
+
+
+```{r}
+textplot_wordcloud(subs_dfm, min_count = 15, min_size = 8)
+```
+
+
+```{r}
+textplot_wordcloud(abrs_dfm, min_count = 15, min_size = 8)
+```
+
+```{r}
+subs_features_dfm <- textstat_frequency(subs_dfm, n = 40)
+head(subs_features_dfm, n = 10)
+```
+
+```{r}
+abrs_features_dfm <- textstat_frequency(abrs_dfm, n = 40)
+head(abrs_features_dfm, n = 10)
+```
+
+```{r}
+subs_features_dfm$frequency <- with(subs_features_dfm, reorder(feature, -frequency))
+
+ggplot(subs_features_dfm, aes(x = feature, y = frequency)) +
+    geom_point() + 
+    theme_classic() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    ylab("Frequency") + 
+    xlab("Feature Token")
+```
+
+
+```{r}
+abrs_features_dfm$frequency <- with(abrs_features_dfm, reorder(feature, -frequency))
+
+ggplot(abrs_features_dfm, aes(x = feature, y = frequency)) +
+    geom_point() + 
+    theme_classic() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    ylab("Frequency") + 
+    xlab("Feature Token")
+```
+
+
+## Definitions
+
+```{python}
+pop1 = wn.synsets("game")
+pop2 = wn.synsets("created")
+pop3 = wn.synsets("beta")
+```
+
+```{python}
+print(pop1, '\n')
+print(pop2, '\n')
+print(pop3, '\n')
+```
+
+```{python}
+pop1_df = pd.DataFrame([
+    {"Sysnet": each_synset,
+     "Part of Speech": each_synset.pos(),
+     "Definition": each_synset.definition(),
+     "Lemmas": each_synset.lemma_names(),
+     "Examples": each_synset.examples(),
+     "Hyponyms": each_synset.hyponyms(),
+     "Hypernyms": each_synset.hypernyms()}
+    for each_synset in pop1])
+
+pop1_df.Definition
+```
+
+
+```{python}
+pop2_df = pd.DataFrame([
+    {"Sysnet": each_synset,
+     "Part of Speech": each_synset.pos(),
+     "Definition": each_synset.definition(),
+     "Lemmas": each_synset.lemma_names(),
+     "Examples": each_synset.examples(),
+     "Hyponyms": each_synset.hyponyms(),
+     "Hypernyms": each_synset.hypernyms()}
+    for each_synset in pop2])
+
+pop2_df.Definition
+```
+
+
+```{python}
+pop3_df = pd.DataFrame([
+    {"Sysnet": each_synset,
+     "Part of Speech": each_synset.pos(),
+     "Definition": each_synset.definition(),
+     "Lemmas": each_synset.lemma_names(),
+     "Examples": each_synset.examples(),
+     "Hyponyms": each_synset.hyponyms(),
+     "Hypernyms": each_synset.hypernyms()}
+    for each_synset in pop3])
+
+pop3_df.Definition
+```
+
+
+```{python}
+s_searched_sentences = re.findall(r"([^.?!]*?beta[^.?!]*\.)", s_dia)
+
+get_semantic(s_searched_sentences[4], "beta")
+```
+
+```{python}
+a_searched_sentences = re.findall(r"([^.?!]*?beta[^.?!]*\.)", a_dia)
+
+get_semantic(a_searched_sentences[0], "beta")
+```
+
+
+## Entity Recognition
+
+```{python}
+subs_doc = nlp(s_dia)
+abrs_doc = nlp(a_dia)
+```
+
+```{python, warning=FALSE}
+s_entsDF = pd.DataFrame(columns=["Text", "Label"])
+
+for ent in subs_doc.ents:
+    new_row = { "Text": ent.text, "Label": ent.label_ }
+    s_entsDF = s_entsDF.append(new_row, ignore_index = True)
+
+print(s_entsDF)
+```
+
+
+```{python, warning=FALSE}
+a_entsDF = pd.DataFrame(columns=["Text", "Label"])
+
+for ent in abrs_doc.ents:
+    new_row = { "Text": ent.text, "Label": ent.label_ }
+    a_entsDF = a_entsDF.append(new_row, ignore_index = True)
+
+print(a_entsDF)
+```
+
+
+```{python}
+s_reentsDF = s_entsDF.groupby(s_entsDF.columns.to_list()).size().reset_index().rename(columns={0: 'Count'}).sort_values('Count', ascending=False)
+print(s_reentsDF)
+```
+
+```{python}
+a_reentsDF = a_entsDF.groupby(a_entsDF.columns.to_list()).size().reset_index().rename(columns={0: 'Count'}).sort_values('Count', ascending=False)
+print(a_reentsDF)
+```
+
+# Parsing
+
+```{python, warning=FALSE}
+s_depDF = pd.DataFrame(columns=["Text", "Dep", "Head Text", "Head POS", "Children"])
+
+for token in subs_doc:
+    new_row = { "Text": token.text, "Dep": token.dep_, 
+    "Head Text": token.head.text, "Head POS": token.head.pos_, 
+    "Children": [child for child in token.children] }
+    s_depDF = s_depDF.append(new_row, ignore_index=True)
+    
+print(s_depDF)
+```
+
+
+```{python, warning=FALSE}
+a_depDF = pd.DataFrame(columns=["Text", "Dep", "Head Text", "Head POS", "Children"])
+
+for token in abrs_doc:
+    new_row = { "Text": token.text, "Dep": token.dep_, 
+    "Head Text": token.head.text, "Head POS": token.head.pos_, 
+    "Children": [child for child in token.children] }
+    a_depDF = a_depDF.append(new_row, ignore_index=True)
+    
+print(a_depDF)
+```
+
+```{python}
+subs_selected_wordsDF = s_depDF.loc[(s_depDF['Text'] == 'beta') |
+(s_depDF['Text'] == 'game')].sort_values('Text', ascending=True)
+print(subs_selected_wordsDF)
+```
+
+```{python}
+abrs_selected_wordsDF = a_depDF.loc[(a_depDF['Text'] == 'beta') |
+(a_depDF['Text'] == 'game')].sort_values('Text', ascending=True)
+print(abrs_selected_wordsDF)
+```
+
+
+# Classification
+
+```{python}
+pop_words = ['kirito','asuna', 'beta', 'klein', 'yui', 'nergear', 'skill', 'sword', 'created', 'know', 'now', 'want', 'use', 'game', 'player', 'players', 'ring', 'boss']
+pattern = '|'.join(pop_words)
+
+```
+
+```{python}
+subs_dialogue['matched_pattern'] = [bool(re.search(re.compile(pattern), sent)) for sent in subs_dialogue['dialogue_untagged']]
+
+subs_dialogue.describe()
+```
+
+```{python}
+abrs_dialogue['matched_pattern'] = [bool(re.search(re.compile(pattern), sent)) for sent in abrs_dialogue['dialogue_untagged']]
+
+abrs_dialogue.describe()
+```
+
+```{python}
+subs_dialogue['new_dialogue'] = [re.sub(re.compile(pattern), " ", sent) for sent in subs_dialogue['dialogue_untagged']]
+```
+
+```{python}
+abrs_dialogue['new_dialogue'] = [re.sub(re.compile(pattern), " ", sent) for sent in abrs_dialogue['dialogue_untagged']]
+```
+
+```{python}
+# Data train/test split
+s_train_corpus, s_test_corpus, s_train_label_names, s_test_label_names = train_test_split(np.array(subs_dialogue['new_dialogue'].apply(lambda x:np.str_(x))),
+  np.array(subs_dialogue['matched_pattern']), 
+  test_size=0.10, 
+  random_state=8393)
+
+s_train_corpus.shape, s_test_corpus.shape
+ 
+pd.DataFrame(s_train_label_names).value_counts()
+pd.DataFrame(s_test_label_names).value_counts()
+
+# must tokenize before you build 
+s_tokenized_train = [nltk.tokenize.word_tokenize(text)
+                   for text in s_train_corpus]
+s_tokenized_test = [nltk.tokenize.word_tokenize(text)
+                   for text in s_test_corpus]
+                   
+# build Bag of Words with TFIDF features on Episode 1
+stv = TfidfVectorizer(use_idf=True, min_df=0.0, max_df=1.0)
+
+# apply to train and test
+s_tv_train_features = stv.fit_transform(s_train_corpus)
+s_tv_test_features = stv.transform(s_test_corpus)
+
+# look at feature shape
+print('TFIDF model:> Train features shape:', s_tv_train_features.shape, ' Test features shape:', s_tv_test_features.shape)
+```
+
+```{python}
+# Data train/test split
+a_train_corpus, a_test_corpus, a_train_label_names, a_test_label_names = train_test_split(np.array(abrs_dialogue['new_dialogue'].apply(lambda x:np.str_(x))),
+  np.array(abrs_dialogue['matched_pattern']), 
+  test_size=0.10, 
+  random_state=8393)
+
+a_train_corpus.shape, a_test_corpus.shape
+ 
+pd.DataFrame(a_train_label_names).value_counts()
+pd.DataFrame(a_test_label_names).value_counts()
+
+# must tokenize before you build 
+a_tokenized_train = [nltk.tokenize.word_tokenize(text)
+                   for text in a_train_corpus]
+a_tokenized_test = [nltk.tokenize.word_tokenize(text)
+                   for text in a_test_corpus]
+                   
+# build Bag of Words with TFIDF features on Episode 1
+atv = TfidfVectorizer(use_idf=True, min_df=0.0, max_df=1.0)
+
+# apply to train and test
+a_tv_train_features = atv.fit_transform(a_train_corpus)
+a_tv_test_features = atv.transform(a_test_corpus)
+
+# look at feature shape
+print('TFIDF model:> Train features shape:', a_tv_train_features.shape, ' Test features shape:', a_tv_test_features.shape)
+```
+
+
+```{python}
+# Word2Vec model
+s_w2v_num_features = 50
+s_w2v_model = gensim.models.Word2Vec(s_tokenized_train, #corpus
+            vector_size=s_w2v_num_features, #number of features
+            window=8, #size of moving window
+            sg = 0) #cbow model
+            
+s_avg_wv_train_features = document_vectorizer(corpus=s_tokenized_train, model=s_w2v_model,
+                                                     num_features=s_w2v_num_features)
+s_avg_wv_test_features = document_vectorizer(corpus=s_tokenized_test, model=s_w2v_model,
+                                                    num_features=s_w2v_num_features)
+
+s_avg_wv_train_features.shape
+s_avg_wv_test_features.shape
+```
+
+```{python}
+# Word2Vec model
+a_w2v_num_features = 50
+a_w2v_model = gensim.models.Word2Vec(a_tokenized_train, #corpus
+            vector_size=a_w2v_num_features, #number of features
+            window=8, #size of moving window
+            sg = 0) #cbow model
+            
+a_avg_wv_train_features = document_vectorizer(corpus=a_tokenized_train, model=a_w2v_model, num_features=a_w2v_num_features)
+
+a_avg_wv_test_features = document_vectorizer(corpus=a_tokenized_test, model=a_w2v_model, num_features=a_w2v_num_features)
+
+a_avg_wv_train_features.shape
+a_avg_wv_test_features.shape
+```
+
+```{python}
+## build a blank model LR
+s_lr_t = LogisticRegression(penalty='l2', solver='lbfgs', multi_class='ovr',
+                        max_iter=1000, C=1, random_state=42)
+# fit the data to it 
+s_lr_t.fit(s_tv_train_features, s_train_label_names)
+ 
+# build a blank model
+s_lr_w = LogisticRegression(penalty='l2', solver='lbfgs', multi_class='ovr',
+                        max_iter=1000, C=1, random_state=42)
+# fit the data to it 
+s_lr_w.fit(s_avg_wv_train_features, s_train_label_names)
+ 
+s_avg_wv_train_features.min()
+s_avg_wv_test_features.min()
+ 
+s_avg_wv_train_features = abs(s_avg_wv_train_features) + .5
+s_avg_wv_test_features = abs(s_avg_wv_test_features) + .5
+ 
+ 
+## build a blank MNNB model
+s_mnb_t = MultinomialNB(alpha=1)
+# fit the data to it 
+s_mnb_t.fit(s_tv_train_features, s_train_label_names) # TF-IDF
+ 
+# build a blank model
+s_mnb_w = MultinomialNB(alpha=1)
+# fit the data to it 
+s_mnb_w.fit(s_avg_wv_train_features, s_train_label_names) # Word2Vec
+```
+
+```{python}
+## build a blank model LR
+a_lr_t = LogisticRegression(penalty='l2', solver='lbfgs', multi_class='ovr',
+                        max_iter=1000, C=1, random_state=42)
+# fit the data to it 
+a_lr_t.fit(a_tv_train_features, a_train_label_names)
+ 
+# build a blank model
+a_lr_w = LogisticRegression(penalty='l2', solver='lbfgs', multi_class='ovr',
+                        max_iter=1000, C=1, random_state=42)
+# fit the data to it 
+a_lr_w.fit(a_avg_wv_train_features, a_train_label_names)
+ 
+a_avg_wv_train_features.min()
+a_avg_wv_test_features.min()
+ 
+a_avg_wv_train_features =  abs(a_avg_wv_train_features) + .5
+a_avg_wv_test_features = abs(a_avg_wv_test_features) + .5
+ 
+ 
+## build a blank MNNB model
+a_mnb_t = MultinomialNB(alpha=1)
+# fit the data to it 
+a_mnb_t.fit(a_tv_train_features, a_train_label_names) # TF-IDF
+ 
+# build a blank model
+a_mnb_w = MultinomialNB(alpha=1)
+# fit the data to it 
+a_mnb_w.fit(a_avg_wv_train_features, a_train_label_names) # Word2Vec
+```
+
+```{python}
+# predict new data points 
+s_y_pred_t = s_lr_t.predict(s_tv_test_features)
+# print out report 
+print("Subs Logistic Regression (TF-IDF)\n",classification_report(s_test_label_names, s_y_pred_t))
+ 
+# predict new data points 
+s_y_pred_w = s_lr_w.predict(s_avg_wv_test_features)
+# print out report 
+print("Subs Logistic Regression (Word2Vec)\n", classification_report(s_test_label_names, s_y_pred_w))
+ 
+# predict new data points 
+s_y_pred_t_m = s_mnb_t.predict(s_tv_test_features)
+# print out report 
+print("Subs Multinomial NB (TF-IDF)\n", classification_report(s_test_label_names, s_y_pred_t_m))
+ 
+# predict new data points 
+s_y_pred_w_m = s_mnb_w.predict(s_avg_wv_test_features)
+# print out report 
+print("Subs Multinomial NB (Word2Vec)\n", classification_report(s_test_label_names, s_y_pred_w_m))
+```
+
+```{python}
+# predict new data points 
+a_y_pred_t = a_lr_t.predict(a_tv_test_features)
+# print out report 
+print("Abridged Logistic Regression (TF-IDF)\n",classification_report(a_test_label_names, a_y_pred_t))
+ 
+# predict new data points 
+a_y_pred_w = a_lr_w.predict(a_avg_wv_test_features)
+# print out report 
+print("Abridged Logistic Regression (Word2Vec)\n", classification_report(a_test_label_names, a_y_pred_w))
+ 
+# predict new data points 
+a_y_pred_t_m = a_mnb_t.predict(a_tv_test_features)
+# print out report 
+print("Abridged Multinomial NB (TF-IDF)\n", classification_report(a_test_label_names, a_y_pred_t_m))
+ 
+# predict new data points 
+a_y_pred_w_m = a_mnb_w.predict(a_avg_wv_test_features)
+# print out report 
+print("Abridged Multinomial NB (Word2Vec)\n", classification_report(a_test_label_names, a_y_pred_w_m))
+```
+
+
+```{r}
+s_examples <- cbind.data.frame(py$s_test_corpus, py$s_test_label_names, py$s_y_pred_t)
+colnames(s_examples) <- c("dialogue", "test", "real")
+s_examples$dialogue[s_examples$test != s_examples$real][1:10]
+```
+
+```{r}
+a_examples <- cbind.data.frame(py$a_test_corpus, py$a_test_label_names, py$a_y_pred_t)
+colnames(a_examples) <- c("dialogue", "test", "real")
+a_examples$dialogue[a_examples$test != a_examples$real][1:10]
+```
+
+
+## Sentiment
+
+```{python}
+# Using TextBlob we will find the sentiment scores for both clean and stem of the sentences.
+
+subs_dialogue['new_dialogue_clean'] = subs_dialogue['new_dialogue'].apply(clean_text)
+subs_dialogue['tb_new_clean_dialogue'] = [textblob.TextBlob(dia).sentiment.polarity for dia in subs_dialogue['new_dialogue_clean']]
+```
+
+```{python}
+# dichotomize
+subs_dialogue['tb_new_clean_dialogue_label'] = ['positive' if score >=0.0 else 'negative' for score in subs_dialogue['tb_new_clean_dialogue']]
+
+subs_dialogue['tb_new_clean_dialogue_label'].value_counts()
+```
+
+```{python}
+# Using TextBlob we will find the sentiment scores for both clean and stem of the sentences.
+
+abrs_dialogue['new_dialogue_clean'] = abrs_dialogue['new_dialogue'].apply(clean_text)
+abrs_dialogue['tb_new_clean_dialogue'] = [textblob.TextBlob(dia).sentiment.polarity for dia in abrs_dialogue['new_dialogue_clean']]
+```
+
+```{python}
+# dichotomize
+abrs_dialogue['tb_new_clean_dialogue_label'] = ['positive' if score >=0.0 else 'negative' for score in abrs_dialogue['tb_new_clean_dialogue']]
+
+abrs_dialogue['tb_new_clean_dialogue_label'].value_counts()
+```
+
+
+### Movie Review Impoty
+```{python}
+MV = pd.read_csv('../7_Sentiment_Analysis/movie_review.csv')
+MV.describe()
+```
+
+```{python}
+MV['review_clean'] = MV['review'].apply(clean_text)
+
+MV['review_clean_sentiment'] = [afn.score(rev) for rev in MV['review_clean']]
+MV['review_clean_sentiment_label'] = ['positive' if score >= 0.0 else 'negative' for score in MV['review_clean_sentiment']]
+
+MV['review_clean_sentiment_label'].value_counts()
+```
+
+```{python}
+print('TextBlob Sentiment ', classification_report(y_true = MV['sentiment'], y_pred = MV['review_clean_sentiment_label']))
+```
+
+
+```{python}
+MV['review_clean'] = MV['review_clean'].str.replace(r'[^a-zA-Z0-9\s]|\[|\]', ' ')
+
+train_reviews, test_reviews, train_labels, test_labels = sklearn.model_selection.train_test_split(MV['review_clean'], MV['sentiment'], random_state = 1876, test_size = .10)
+
+train_reviews.shape
+test_reviews.shape
+```
+
+```{python}
+tv2 = TfidfVectorizer(use_idf=True, min_df=0.0, max_df=1.0, ngram_range=(1,2), sublinear_tf=False)
+
+mvtv_train_feat = tv2.fit_transform(train_reviews)
+mvtv_test_feat = tv2.transform(test_reviews)
+
+mvtv_train_feat.shape
+mvtv_test_feat.shape
+```
+
+```{python}
+lr = LogisticRegression(penalty='l2', max_iter=1000, C=1)
+lr_tv_model = lr.fit(mvtv_train_feat, train_labels)
+lr_tv_predict = lr_tv_model.predict(mvtv_test_feat)
+```
+
+```{python}
+new_subs_features= tv2.transform(subs_dialogue['clean_dialogue'])
+new_subs_features.shape
+```
+
+```{python}
+lr_subs_predict = lr_tv_model.predict(new_subs_features)
+subs_dialogue['sentiment'] = lr_subs_predict
+subs_dialogue['sentiment'].value_counts()
+```
+
+```{python}
+new_abrs_features= tv2.transform(abrs_dialogue['clean_dialogue'])
+new_abrs_features.shape
+```
+
+```{python}
+lr_abrs_predict = lr_tv_model.predict(new_abrs_features)
+abrs_dialogue['sentiment'] = lr_abrs_predict
+abrs_dialogue['sentiment'].value_counts()
+```

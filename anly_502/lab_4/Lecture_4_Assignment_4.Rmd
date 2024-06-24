@@ -1,0 +1,119 @@
+---
+title: "Lecture_4_Assignment_4"
+author: "Akane Simpson"
+date: '`r Sys.Date()`'
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+load("bdims.RData")
+
+mdims <- subset(bdims, bdims$sex == 1)
+fdims <- subset(bdims, bdims$sex == 0)
+```
+# On Your Own
+
+## Now let's consider some of the other variables in the body dimensions data set.
+
+1. Using the figures at the end of the exercises, match the histogram to its normal probability plot.
+
+All of the variables have been standardized (first subtract the mean, then divide by the  standard deviation), so the units won't be of any help. If you are uncertain based on these figures, generate the plots in R to check. (A,B,C,D)
+
+a. The histogram for female biiliac (pelvic) diameter ( bii.di ) belongs to normal probability plot letter ____.
+
+```{r 1a}
+hist(fdims$bii.di, xlim = c(15, 35), ylim = c(0,100), breaks = 25)
+
+qqnorm(fdims$bii.di)
+qqline(fdims$bii.di)
+print("B")
+```
+
+b. The histogram for female elbow diameter ( elb.di ) belongs to normal probability plot letter ____.
+
+```{r 1b}
+hist(fdims$elb.di, breaks = 25)
+
+qqnorm(fdims$elb.di)
+qqline(fdims$elb.di)
+print("C")
+```
+
+
+c. The histogram for general age ( age ) belongs to normal probability plot letter ____.
+
+```{r 1c}
+hist(bdims$age, breaks = 25)
+
+qqnorm(bdims$age)
+qqline(bdims$age)
+
+print("D")
+```
+
+d. The histogram for female chest depth ( che.de ) belongs to normal probability plot letter ____.
+
+```{r 1d}
+hist(fdims$che.de,breaks = 25)
+
+qqnorm(fdims$che.de)
+qqline(fdims$che.de)
+
+print("A")
+```
+
+e. Note that normal probability plots C and D have a slight stepwise pattern. Why do you think this is the case?
+
+```{r 1e,echo=FALSE}
+
+print("The C plot and D plot may be influenced based on the sampling for this study. The age distributions looks to be mostly represented by those under 35 which would skew D normal probability to the right. For the C normal probability plot since more women participated in the study their may be a more women with the same elbow diameter.")
+```
+
+As you can see, normal probability plots can be used both to assess normality and visualize skewness.
+
+2. Make a normal probability plot for female knee diameter (kne.di).
+```{r}
+qqnorm(fdims$kne.di)
+qqline(fdims$kne.di)
+```
+
+
+a. Based on this normal probability plot, is this variable left skewed, symmetric, or right skewed? Use a histogram to confirm your findings.
+```{r,echo=FALSE}
+print("The variable is right skewed. This can be confirmed with the histogram below")
+```
+```{r}
+hist(fdims$kne.di, breaks = 25, xlim = c(14,26))
+```
+
+
+
+A
+```{r,echo=FALSE}
+qqnorm(fdims$che.de)
+qqline(fdims$che.de)
+
+```
+
+
+B
+```{r,echo=FALSE}
+qqnorm(fdims$bii.di)
+qqline(fdims$bii.di)
+
+```
+
+C
+```{r,echo=FALSE}
+qqnorm(fdims$elb.di)
+qqline(fdims$elb.di)
+```
+
+
+D
+```{r, echo=FALSE}
+qqnorm(fdims$age)
+qqline(fdims$age)
+
+```

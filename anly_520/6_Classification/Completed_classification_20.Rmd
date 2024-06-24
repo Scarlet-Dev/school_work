@@ -1,0 +1,273 @@
+---
+title: 'Classification'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Please do not reorder the assignment - fill in each chunk as requested. 
+
+## Load the libraries + functions
+
+Load all the libraries or functions that you will use to for the rest of the assignment. It is helpful to define your libraries and functions at the top of a report, so that others can know what they need for the report to compile correctly.
+
+```{r libaries}
+##r chunk
+```
+
+Load the Python libraries or functions that you will use for that section. 
+
+```{python}
+##python chunk
+import pandas as pd
+import numpy as np
+# ML
+import sklearn
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
+from sklearn.naive_bayes import MultinomialNB
+# text normalization
+import nltk
+from bs4 import BeautifulSoup
+import contractions
+from nltk.stem import PorterStemmer
+ps = PorterStemmer()
+stopwords = nltk.corpus.stopwords.words('english')
+import unicodedata
+import contractions
+# test feature extraction
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+import gensim
+```
+
+```{python}
+#create flattening function
+def document_vectorizer(corpus, model, num_features):
+    vocabulary = set(model.wv.index_to_key)
+    def average_word_vectors(words, model, vocabulary, num_features):
+        feature_vector = np.zeros((num_features,), dtype="float64")
+        nwords = 0.
+        for word in words:
+            if word in vocabulary: 
+                nwords = nwords + 1.
+                feature_vector = np.add(feature_vector, model.wv[word])
+        if nwords:
+            feature_vector = np.divide(feature_vector, nwords)
+        return feature_vector
+    features = [average_word_vectors(tokenized_sentence, model, vocabulary, num_features)
+                    for tokenized_sentence in corpus]
+    return np.array(features)
+```
+
+## The Data
+
+The dataset is a set of Youtube comments that have been coded as:
+  - 1: spam youtube messages 
+  - 0: good youtube messages
+  - This data is stored in the `CLASS` column
+
+Import the data using either R or Python. I put a Python chunk here because you will need one to import the data, but if you want to first import into R, that's fine. 
+
+```{python}
+##python chunk
+DF = pd.read_csv('./youtube_spam.csv')
+DF.head()
+DF.CLASS.value_counts()
+```
+
+## Clean up the data (text normalization)
+
+Use one of our clean text functions to clean up the `CONTENT` column in the dataset. 
+
+```{python}
+##python chunk
+# normalize our corpus
+DF['CONTENT_clean'] = DF['CONTENT']
+ 
+#remove html
+DF['CONTENT_clean'] = [BeautifulSoup(str(text)).get_text() for text in DF['CONTENT_clean'].tolist()]
+ 
+#lower case
+DF['CONTENT_clean'] = DF['CONTENT_clean'].str.lower()
+ 
+#contractions
+DF['CONTENT_clean'] = [contractions.fix(text) for text in DF['CONTENT_clean'].tolist()]
+ 
+#unicode
+DF['CONTENT_clean'] = [unicodedata.normalize('NFKD', str(text)).encode('ascii', 'ignore').decode('utf-8', 'ignore') for text in DF['CONTENT_clean'].tolist()]
+ 
+#take out special characters
+DF['CONTENT_clean'] = DF['CONTENT_clean'].str.replace('[^a-zA-Z0-9\s]|\[|\]', ' ')
+ 
+#stemming
+DF['CONTENT_clean'] = [' '.join([ps.stem(word) for word in text.split()]) for text in DF['CONTENT_clean'].tolist()]
+ 
+#stop words
+DF['CONTENT_clean'] = [' '.join([word for word in text.split() if word not in stopwords]) for text in DF['CONTENT_clean'].tolist()]
+ 
+#drop the null values after this process
+DF = DF[~(DF.CONTENT_clean.str.strip() == '')]
+DF = DF.dropna().reset_index(drop=True)
+```
+
+## Split the data
+
+Split the data into testing and training data.
+
+```{python}
+##python chunk
+train_corpus, test_corpus, train_label_names, test_label_names = train_test_split(np.array(DF['CONTENT_clean'].apply(lambda x:np.str_(x))),
+  np.array(DF['CLASS']), 
+  test_size=0.20, 
+  random_state=8393)
+ 
+train_corpus.shape, test_corpus.shape
+ 
+pd.DataFrame(train_label_names).value_counts()
+pd.DataFrame(test_label_names).value_counts()
+```
+
+
+## Process the data
+
+For word2vec, create the tokenized vectors of the text.
+
+```{python}
+##python chunk
+# must tokenize before you build 
+tokenized_train = [nltk.tokenize.word_tokenize(text)
+                   for text in train_corpus]
+tokenized_test = [nltk.tokenize.word_tokenize(text)
+                   for text in test_corpus]
+```
+
+## TF-IDF
+
+Create a TF-IDF matrix.
+
+```{python}
+##python chunk
+# build BOW with TFIDF features on train articles
+tv = TfidfVectorizer(use_idf=True, min_df=0.0, max_df=1.0)
+
+# apply to train and test
+tv_train_features = tv.fit_transform(train_corpus)
+tv_test_features = tv.transform(test_corpus)
+
+# look at feature shape
+print('TFIDF model:> Train features shape:', tv_train_features.shape, ' Test features shape:', tv_test_features.shape)
+```
+
+## Word2Vec
+
+Build the word2vec model.
+
+```{python}
+##python chunk
+w2v_num_features = 750
+w2v_model = gensim.models.Word2Vec(tokenized_train, #corpus
+            vector_size=w2v_num_features, #number of features
+            window=10, #size of moving window
+            min_count=5, #minimum number of times to run
+            sg = 0) #cbow model
+```
+
+## Convert the model
+
+Convert the word2vec model into a set of features to use in our classifier. 
+
+```{python}
+##python chunk
+# generate averaged word vector features from word2vec model
+avg_wv_train_features = document_vectorizer(corpus=tokenized_train, model=w2v_model,
+                                                     num_features=w2v_num_features)
+avg_wv_test_features = document_vectorizer(corpus=tokenized_test, model=w2v_model,
+                                                    num_features=w2v_num_features)
+
+avg_wv_train_features.shape
+avg_wv_test_features.shape
+```
+
+## Build a classifier model
+
+In class, we used a few algorithms to test which model might be the best. Pick *one* of the algorithms to use here (logistic regression, naive bayes, support vector machine). 
+
+Run your algorithm on both the TF-IDF matrix and the output from word2vec. 
+
+```{python}
+##python chunk
+# build a blank model
+lr_t = LogisticRegression(penalty='l2', solver='lbfgs', multi_class='ovr',
+                        max_iter=1000, C=1, random_state=42)
+# fit the data to it 
+lr_t.fit(tv_train_features, train_label_names)
+ 
+# build a blank model
+lr_w = LogisticRegression(penalty='l2', solver='lbfgs', multi_class='ovr',
+                        max_iter=1000, C=1, random_state=42)
+# fit the data to it 
+lr_w.fit(avg_wv_train_features, train_label_names)
+ 
+avg_wv_train_features.min()
+avg_wv_test_features.min()
+ 
+avg_wv_train_features = avg_wv_train_features + .5
+avg_wv_test_features = avg_wv_test_features + .5
+ 
+ 
+# build a blank model
+mnb_t = MultinomialNB(alpha=1)
+# fit the data to it 
+mnb_t.fit(tv_train_features, train_label_names)
+ 
+# build a blank model
+mnb_w = MultinomialNB(alpha=1)
+# fit the data to it 
+mnb_w.fit(avg_wv_train_features, train_label_names)
+```
+
+## Examine the results
+
+Print out the accuracy, recall, and precision of both of your models.
+
+```{python}
+##python chunk
+# predict new data points 
+y_pred_t = lr_t.predict(tv_test_features)
+# print out report 
+print("Logistic Regression\n",classification_report(test_label_names, y_pred_t))
+ 
+# predict new data points 
+y_pred_w = lr_w.predict(avg_wv_test_features)
+# print out report 
+print("Logistic Regression (Word2Vec)\n", classification_report(test_label_names, y_pred_w))
+ 
+# predict new data points 
+y_pred_t_m = mnb_t.predict(tv_test_features)
+# print out report 
+print("Multinomial NB\n", classification_report(test_label_names, y_pred_t_m))
+ 
+# predict new data points 
+y_pred_w_m = mnb_w.predict(avg_wv_test_features)
+# print out report 
+print("Multinomial NB (Word2Vec)\n", classification_report(test_label_names, y_pred_w_m))
+```
+
+## Interpretation 
+
+- Were you able to predict the spam messages from the real comments?
+
+> Yes, some of the models we created were able to predict the spam comments.
+> However, some models performed better at prediction than others.
+
+- Which model provided you with a better prediction?
+
+> The Logistic Regression and Multinomial NB model for non Word2Vec performed
+> well with the first model with an accuracy of 92% and the 
+> third model with an accuracy of 91%. The Word2Vec Logistic Regression
+> and Multinomial NB models performed the worst with 63% and 50% respectively.

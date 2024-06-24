@@ -1,0 +1,91 @@
+---
+title: "Lecture_7_Assingment_7"
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+load("nc.RData")
+```
+
+# ON YOUR OWN
+
+1. Calculate a 95% confidence interval for the average length of pregnancies (weeks) and interpret it in context. Note that since you're doing inference on a single population parameter, there is no explanatory variable, so you can omit the x variable from the function.
+```{r, warning=FALSE}
+inference(y = nc$weeks, est = "mean",type = "ci", alternative = "twosided", method = "theoretical")
+```
+```{r,echo=FALSE}
+# Average number of weeks in a month = 4.345
+mean(nc$weeks, na.rm = TRUE)/4.345
+print("The sample's average pregnancy weeks is 38 weeks. The interval for this is very small as most women in this sample seem to give birth around the same weeks. Since pregnancies are measured in weeks the average pregnancy in months would be 8.8 months. This is the typical duration of a full term birth.")
+```
+
+
+2. Calculate a new confidence interval for the same parameter at the 90% confidence level. You can change the confidence level by adding a new argument to the function: conflevel = 0.90.
+```{r,warning=FALSE}
+inference(y = nc$weeks, est = "mean", type = "ci", alternative = "twosided", method = "theoretical", conflevel = 0.90)
+```
+
+
+3. Conduct a hypothesis test evaluating whether the average weight gained by younger mothers is different than the average weight gained by mature mothers.
+```{r,warning=FALSE}
+by(nc$weight, nc$mature,mean)
+inference(x = nc$mature, y = nc$weight, est = "mean", type = "ht", null = 0, alternative = "twosided", method = "theoretical")
+```
+```{r,echo=FALSE}
+print("From the inference there is a slight statistical difference between the weight of newborns between young and mature mothers. With a significance level of 0.05 and a p-value 0.853 there is a difference of great statistical value, thus we must reject the null hypothesis.")
+```
+
+
+4. Now, a non-inference task: Determine the age cutoff for younger and mature mothers. Use a method of your choice, and explain how your method works.
+```{r}
+by(nc$mage, nc$mature,summary)
+```
+
+```{r, echo=FALSE}
+print("From the sumamry younger moms can range 13 to 34 years old. Mature moms range from 35 to 50 years. Therefore we can find a value between the two's min and max which will act as a cutoff age.")
+```
+
+```{r}
+by(nc$mage, nc$mature, max)
+by(nc$mage, nc$mature, min)
+
+# Now subsetting the the two subgroups allows to find the separate min and max
+young_moms = subset(nc, subset = nc$mature == "younger mom", select = mage)
+mature_moms = subset(nc, subset = nc$mature == "mature mom", select = mage)
+
+# We can then find an in between value of the max value of younger mothers and the min value of mature mothers.
+cutoff_age = (max(young_moms) + min(mature_moms))/2
+```
+```{r, echo=FALSE}
+sprintf("The cutoff age between a young and a mature mothers is at %.2f years old.", cutoff_age)
+```
+
+
+5. Pick a pair of numerical and categorical variables and come up with a research question evaluating the relationship between these variables. Formulate the question in a way that it can be answered using a hypothesis test and/or a confidence interval. Answer your question using the inference function, report the statistical results, and also provide an explanation in plain language.
+```{r, echo=FALSE}
+# premie and weight
+print("Using the variables of categorical variable 'habit' and numerical variable 'weight' there may be a link to how often expecting mothers babies will have a difference in weight based on their smoking habits.")
+```
+
+```{r Plotting the Difference}
+# To find the link we need to try and find correlation between the two variables. From that correlation we can attempt to create a hypothesis.
+plot(nc$habit, nc$weight, xlab = "Mother's Smoking Habit", ylab = "Newborn's Weight", main = "Boxplot of Newborn's Weight against\n Mother's Smoking Habit", col = c("steelblue", "salmon"))
+```
+
+```{r,echo=FALSE}
+print("From the boxplot above there is an overlap between the newborn weight interval of mothers who smoke vs those who do not. A hypothesis can be developed from the boxplot. A newborn from a non-smoking mother will weight more than a newborn from a smoking mother. The null hypothesis to this would be that there is no significant difference of weights between newborns of smoking and non-smoking mothers.")
+```
+
+
+```{r}
+inference(y = nc$weight, x = nc$habit,  est = "mean",type = "ht", null = 0, alternative = "greater", method = "theoretical", conflevel = 0.95)
+```
+
+```{r, echo=FALSE}
+print("From the inference results we can observe that the with a confidence level of 95%, a majority of the newborns weights between the smoking and non-smoking moms is the same. This can be seen with a p-value of 0.009 which is less than the alpha level of 0.05. Therefore, we cannot reject the null hypothesis.")
+```
+

@@ -1,0 +1,206 @@
+---
+title: 'Entity Recognition Assignment'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#do not change this
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries / R Setup
+
+- In this section, include the *R* set up for Python to run. 
+
+```{r}
+##r chunk
+library(reticulate)
+library(wordnet)
+
+setDict("/usr/bin/wordnet")
+filter <- getTermFilter("ExactMatchFilter",
+                        word = "wrong",
+                        ignoreCase = TRUE)
+
+terms <- getIndexTerms("NOUN", 5, filter)
+terms
+```
+
+- In this section, include import functions to load the packages you will use for Python.
+
+```{python}
+##python chunk
+from nltk.corpus import wordnet as wn
+from nltk.corpus import wordnet_ic
+semcor_ic = wordnet_ic.ic('ic-semcor.dat')
+
+import pandas as pd
+import spacy
+
+import random
+import re
+```
+
+## Synsets
+
+- You should create a Pandas dataframe of the synsets for a random word in Wordnet.
+- Use https://www.randomword.net/ to find your random word.
+- You should create this dataframe like the example shown for "fruit" in the notes.
+
+```{python}
+##python chunk
+word_sets = wn.synsets("novice")
+print(word_sets)
+
+pd.set_option('display.max_columns', None)
+word_df = pd.DataFrame([
+    {"Sysnet": each_synset,
+     "Part of Speech": each_synset.pos(),
+     "Definition": each_synset.definition(),
+     "Lemmas": each_synset.lemma_names(),
+     "Examples": each_synset.examples(),
+     "Hyponyms": each_synset.hyponyms(),
+     "Hypernyms": each_synset.hypernyms()}
+    for each_synset in word_sets])
+
+word_df
+```
+
+## Nyms
+
+- Include the homonyms and hypernyms of the random word from above. 
+
+```{python}
+##python chunk
+homonyms = word_sets[1].definition()
+homonyms
+
+hypernyms = word_sets[1].hypernyms()
+hypernyms
+
+hyponyms = word_sets[1].hyponyms()
+hyponyms
+```
+
+## Similarity
+
+- Think of two related words to your random word. You can use the synonyms on the random generator page. Calculate the JCN and LIN similarity of your random word and these two words. (four numbers total).
+
+```{python}
+##python chunk
+novice = word_sets[1]
+
+beginner = wn.synsets("beginner")
+beginner = beginner[0]
+
+newbie = wn.synsets("newbie")
+newbie = newbie[0]
+
+print("novice - beginner JCN: ", novice.jcn_similarity(beginner, semcor_ic))
+print("novice - beginner LIN: ", novice.lin_similarity(beginner, semcor_ic))
+
+print("\n")
+
+print("novice - newbie JCN: ", novice.jcn_similarity(newbie, semcor_ic))
+print("novice - newbie LIN: ", novice.lin_similarity(newbie, semcor_ic))
+```
+
+## NER Tagging
+
+- Create a blank spacy model to create your NER tagger. 
+
+```{python}
+##python chunk
+nlp = spacy.blank("en")
+
+nlp.vocab.vectors.name = "novice_model_training"
+```
+
+- Add the NER pipe to your blank model. 
+
+```{python}
+##python chunk
+ner = nlp.create_pipe("ner")
+
+nlp.add_pipe(ner, last=True)
+```
+
+- Create training data. 
+  - Go to: http://trumptwitterarchive.com/
+  - Note you can pick other people than Trump by using "Additional Accounts" at the top right. 
+  - Create training data with at least 5 tweets. 
+  - Tag those tweets with PERSON, LOCATION, GPE, etc. 
+
+```{python}
+##python chunk
+# Tweets from Mashable account
+tweets = [
+    "Aided by teeny platinum legs, these microscopic robots are marching into the future",
+    "This dexterous AI-operated robot hand taught itself to manipulate objects",
+    "This hair-brushing robot's brushing method is designed to care for patients and eliminate pain",
+    "Loyal robot dogs learn to follow their humans using prototype scanning technology",
+    "We want to swim with this slithering, underwater robot snake"
+]
+
+training_data = [ 
+      ( tweets[0], { 'entities': [ (re.search("robots", tweets[0]).start(), re.search("robots", tweets[0]).end(), "TECH") ] } ), 
+      
+      ( tweets[1], { 'entities': [ (re.search("AI", tweets[1]).start(), re.search("AI", tweets[1]).end(), "TECH"),
+          (re.search("manipulate", tweets[1]).start(), re.search("manipulate", tweets[1]).end(), "FEATURE" ) 
+      ] } ), 
+      
+      ( tweets[2], { 'entities': [ (re.search("robot\'s", tweets[2]).start(), re.search("robot\'s", tweets[2]).end(), "TECH"),
+          (re.search("patients", tweets[2]).start(), re.search("patients", tweets[2]).end(), "PERSON" ) ] } ), 
+      
+      ( tweets[3], { 'entities': [ (re.search("robot", tweets[3]).start(), re.search("robot", tweets[3]).end(), "TECH"),
+          (re.search("scanning", tweets[3]).start(), re.search("scanning", tweets[3]).end(), "FEATURE"),
+          (re.search("dogs", tweets[3]).start(), re.search("dogs", tweets[3]).end(), "ANIMAL" ),
+          (re.search("humans", tweets[3]).start(), re.search("humans", tweets[3]).end(), "PERSON" ) ] } ), 
+      
+      ( tweets[4], { 'entities': [ (re.search("robot", tweets[4]).start(), re.search("robot", tweets[4]).end(), "TECH"),
+          (re.search("swim", tweets[4]).start(), re.search("swim", tweets[4]).end(), "FEATURE") ] } ) 
+]
+```
+
+- Add the labels that you used above to your NER tagger. 
+
+```{python}
+##python chunk
+nlp.entity.add_label('TECH')
+nlp.entity.add_label('FEATURE')
+nlp.entity.add_label('PERSON')
+nlp.entity.add_label('ANIMAL')
+```
+
+- Train your NER tagger with the training dataset you created. 
+
+```{python}
+##python chunk
+optimizer = nlp.begin_training()
+
+for i in range(20):
+    random.shuffle(training_data)
+    for text, annotations in training_data:
+        nlp.update([text], [annotations], sgd=optimizer)
+        
+
+nlp.to_disk('./models')
+```
+
+## Using your NER Tagger 
+
+- Use one new tweet from the same writer you had before. 
+- Use your new NER tagger to see if it grabs any of the entities you included. 
+
+```{python}
+##python chunk
+new_tweet = "These swimming robots can put themselves back together when they break"
+saved_output = nlp(new_tweet)
+
+for entity in saved_output.ents:
+  print(entity.label_, ' | ', entity.text, "\n")
+  
+```
+

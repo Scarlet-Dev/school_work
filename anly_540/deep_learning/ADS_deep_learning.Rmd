@@ -1,0 +1,18 @@
+---
+title: 'Deep Learning'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## The Model
+
+Since the deep models take a long time to run and often require a lot of computer power, we will just detail where you might use a deep learning model in your own work.
+
+In this section, detail a classification task you might use a deep learning model for: - What are the class labels? (i.e. what are the groups?) - What would you use to predict the labels? Explain how text is involved in the prediction. - What type of model would you use (RNN, CNN, mix of both)? - How many layers would you include in your model? - What type of layers do you think might be effective to help you predict your classes?
+
+-   Deep learning is a useful tool when dealing with data that has many factors that affects the outcome in analytics. We could create a multinomial CNN model that classifies exam questions in one or more of five major subjects. The subjects of interest could be Science, Humanities, Literature, Art and Geography. We can take class or test questions that would be provided to students from a large unorganzied database and create a word document matrix. From there, we use a preloaded corpus with words matched to the listed subjects. Since it is possible some question can have different topics associated we would need three layers, an input layer, 2 layers of weights and finally the output layer. This CNN model will be dense as the inputs are all the word combinations in a sentence and each word could matter more than others (ie stopwords, keywords). The outputs would be the five listed subjects.

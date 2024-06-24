@@ -1,0 +1,112 @@
+---
+title: "ANLY 510 Exam 2 Q2"
+author: "Akane Simpson"
+date: "2/21/2022"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd('~/hu_lectures/anly_510/Exam_2')
+```
+
+## Question
+A current report has shown that major and highest degrees have significant impacts on individuals’ starting salary. Two thousand, one hundred and sixty participants were randomly selected, in terms of their starting salary, highest degree and major. Now we are interested in using major and degree to predict whether an individual’s starting salary is low or high. Be sure to perform a complete analysis and provide a full summary.
+
+### Research Question
+From the question above we can infer the research question as this: does the degree and major affect an individuals starting salary?
+
+### Hypothesis
+From the question we can create our null and alternative hypothesis:
+  - $H_0$: Degree and major does not affect the starting salary.
+  - $H_A$: Degree and major does affect the starting salary.
+
+### Assumptions
+Additionally, we can make some preliminary assumptions for the study
+
+  - IV: Condition
+  - DV: Major & Degree
+
+### R Code
+```{r}
+library(readxl)
+library(moments)
+library(psych)
+library(car)
+library(Hmisc)
+
+master <- read_xlsx('Application2.xlsx')
+str(master)
+
+salary <- as.data.frame(master)
+
+summary(salary)
+
+with(salary, table(Major, Degree, Condition))
+
+salary$Major <- factor(salary$Major)
+salary$Degree <- factor(salary$Degree)
+salary$Condition <- factor(salary$Condition)
+
+scatterplot(salary$Major, salary$Condition)
+scatterplot(salary$Degree, salary$Condition)
+
+model1 <- glm(Condition ~ Major, data = salary, family = "binomial")
+
+# Tests for model 1
+summary(model1)
+modelchi1 <- model1$null.deviance - model1$deviance
+cdf1 <- model1$df.null - model1$residuals
+chisq1 <- 1 - pchisq(modelchi1, cdf1)
+
+R2.h1 <- modelchi1/model1$null.deviance
+
+model1$coefficients
+exp(model1$coefficients)
+exp(confint(model1))
+
+model2 <- glm(Condition ~ Degree, data = salary, family = "binomial")
+
+# Tests for model 2
+summary(model2)
+modelchi2 <- model2$null.deviance - model2$deviance
+cdf2 <- model2$df.null - model2$residuals
+chisq2 <- 1 - pchisq(modelchi2, cdf2)
+
+R2.h2 <- modelchi2/model2$null.deviance
+
+model1$coefficients
+exp(model2$coefficients)
+exp(confint(model2))
+
+model3 <- glm(Condition ~ Major + Degree, data = salary, family = "binomial")
+
+# Tests for model 3
+summary(model3)
+modelchi3 <- model3$null.deviance - model3$deviance
+cdf3 <- model3$df.null - model3$residuals
+chisq3 <- 1 - pchisq(modelchi3, cdf3)
+
+R2.h3 <- modelchi3/model3$null.deviance
+
+model3$coefficients
+exp(model3$coefficients)
+exp(confint(model3))
+
+anova(model1, model3, test = "Chisq")
+
+head(salary[, c("Major","Degree","Condition")])
+
+# Linearity test
+logDegree <- log(as.numeric(salary$Degree)) * as.numeric(salary$Degree)
+modelTest <- glm(Condition ~ Major + Degree + logDegree, data = salary, family = "binomial")
+summary(modelTest)
+
+logMajor <- log(as.numeric(salary$Major)) * as.numeric(salary$Major)
+modelTest <- glm(Condition ~ Degree + Major + logMajor, data = salary, family = "binomial")
+summary(modelTest)
+```
+
+### APA Summary
+
+A logistic regression model was conducted to predict whether participants' salary are affected by level of education (degree) and major. A significant regression equation was found (x2(2) = 33.78, p < .001), with a Pseudo-R2 of .012. Both intercept (z = 5.26,  p < .001. b = .40), high school degree (z = 2.085,  p < .05, b = .24) and masters degree (z = -3.28,  p < .001. b = .63) were statistically significant. None of the majors had any significance to the starting salary of a participant.

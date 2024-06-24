@@ -1,0 +1,112 @@
+---
+title: 'Word2Vec'
+author: "STUDENT NAME"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load the libraries + functions
+
+Load all the libraries or functions that you will use to for the rest of the assignment. It is helpful to define your libraries and functions at the top of a report, so that others can know what they need for the report to compile correctly.
+
+```{r libaries}
+##r chunk
+```
+
+Load the Python libraries or functions that you will use for that section. 
+
+```{python}
+##python chunk
+
+```
+
+## The Data
+
+The dataset is a set of Youtube comments that have been coded as:
+  - 1: spam youtube messages 
+  - 0: good youtube messages
+  - This data is stored in the `CLASS` column
+
+Import the data using either R or Python. I put a Python chunk here because you will need one to import the data, but if you want to first import into R, that's fine. 
+
+```{python}
+##python chunk
+
+```
+
+## Clean up the data
+
+Use one of our clean text functions to clean up the `CONTENT` column in the dataset. 
+
+```{python}
+##python chunk
+
+```
+
+## Split the data
+
+Split the data into testing and training data.
+
+```{python}
+##python chunk
+
+```
+
+## Process the data
+
+For FastText OR word2vec, create the tokenized vectors of the text.
+
+```{python}
+##python chunk
+
+```
+
+## Build Model
+
+Build either a word2vec or FastText model.
+
+```{python}
+##python chunk
+
+```
+
+## Convert the model
+
+Convert the model into a set of features to use in our classifier. 
+
+```{python}
+##python chunk
+
+```
+
+## Build a classifier model
+
+In class, we used logistic regression to classify the data. You can use any machine learning algorithm you want here, and build a classification model. 
+
+```{python}
+##python chunk
+
+```
+
+## Examine the results
+
+Print out the accuracy, recall, and precision of your model.
+
+```{python}
+##python chunk
+
+```
+
+## Discussion Questions
+
+- How well did the model you build do? What could you do to improve the accuracy of the model? (Interpret the model in at least 5 sentences)
+
+  - ANSWER: 
+
+- Describe a set of texts and research question that interests you that could be explored using this method. Basically, what is a potential application of this method to another area of research?
+
+  - ANSWER: 

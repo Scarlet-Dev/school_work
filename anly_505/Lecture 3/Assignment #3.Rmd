@@ -1,0 +1,149 @@
+---
+title: 'Assignment #3'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(rethinking)
+library(tidyverse)
+```
+
+## Chapter 4 - Geocentric Models
+
+This chapter introduced the simple linear regression model, a framework for estimating the association between a predictor variable and an outcome variable. The Gaussian distribution comprises the likelihood in such models, because it counts up the relative numbers of ways different combinations of means and standard deviations can produce an observation. To fit these models to data, the chapter introduced quadratic approximation of the posterior
+distribution and the tool quap. It also introduced new procedures for visualizing prior and posterior distributions.
+
+
+Place each answer inside the code chunk (grey box).  The code chunks should contain a text response or a code that completes/answers the question or activity requested. Make sure to include plots if the question requests them.  
+
+Finally, upon completion, name your final output `.html` file as: `YourName_ANLY505-Year-Semester.html` and publish the assignment to your R Pubs account and submit the link to Canvas. Each question is worth 5 points.
+
+## Questions
+
+**4-1.** For the model definition below, simulate observed y values from the prior (not the posterior). Make sure to plot the simulation.
+\begin{align}
+\ y_i ∼ Normal(μ, σ) \\
+\ μ ∼ Normal(0, 10) \\
+\ σ ∼ Exponential(1) \\
+\end{align}
+
+```{r 4-1}
+mu <- rnorm(n=1e4, mean = 0, sd = 10)
+sig <- rexp(n=1e4, rate = 1)
+simltion <- tibble(mu, sig) %>% 
+  mutate(y = rnorm(n=1e4, mean = mu, sd = sig))
+
+ggplot(simltion, aes(x = y))+
+  geom_density()+
+  labs(x = "Y", y = "Density")+
+  theme_classic()
+```
+
+**4-2.** Translate the model just above into a quap formula.
+
+A quap formula (quadratic approximation) uses:
+\begin{align}
+\ y_i ∼ Normal(μ, σ) \\
+\ μ ∼ Normal(0, 10) \\
+\ σ ∼ Exponential(1) \\
+\end{align}
+
+```{r 4-2}
+q_form <- alist(
+  y ~ dnorm(mu, sig),
+  mu ~ dnorm(mean = 0, sd = 10),
+  sig ~ dexp(1)
+)
+```
+
+**4-3.** Translate the quap model formula below into a mathematical model definition:
+
+```{r 4.3,eval=FALSE}
+y ~ dnorm( mu , sigma )
+mu <- a + b*x
+a ~ dnorm( 0 , 10 )
+b ~ dunif( 0 , 1 )  
+sigma ~ dexp( 1 )  
+```
+
+\begin{align}
+\ y_i  ∼  Normal(μ, σ) \\
+\ μ = a + b*x \\
+\ \alpha  ~  Normal(0, 10) \\
+\ \beta  ~  Normal(0, 1) \\
+\ σ  ∼  Exponential(1) \\
+\end{align}
+
+
+**4-4.** A sample of students is measured for height each year for 3 years. After the third year, you want
+to fit a linear regression predicting height using year as a predictor. Write down the mathematical
+model definition for this regression, using any variable names and priors you choose. Be prepared to
+defend your choice of priors.  Simulate from the priors that you chose to see what the model expects before it sees the data.  Do this by sampling from the priors.  Then consider 50 students, each simulated with a different prior draw.  For each student simulate 3 years.  Plot the 50 linear relationships with height(cm) on the y-axis and year on the x-axis.  What can we do to make these priors more likely?
+
+
+\begin{align}
+\ h_i ∼ Normal(μ, σ) \\
+\ μ_i = a + \beta * x_i \\
+\ \alpha ~ Normal(136.52, 10) \\
+\ \beta ~ Normal(0, 10) \\
+\ σ ∼ Exponential(1) \\
+\end{align}
+
+
+Using the information above we can create a mathematical model to show this definition. We can casually assume an age of 10 years old children. Using [recorded height and weight data from the Children's Hospital of Philadelphia](https://www.chop.edu/conditions-diseases/normal-growth) we can find the median of both male and female children (after converting the values from inches to centimeters) female = `r fem <- median(47:59) * 2.54; fem`cm and male = `r mle <- median(50.5:59) * 2.54; mle`cm. The mean in the group is `r xbar <- round((mle+fem)/2, 2); xbar`cm. We use a prior of (`r xbar`, 10) with 10 being used to accommodate deviations from the mean.
+
+
+Now using 50 students as our priors using the same 3 years
+
+```{r 4-4}
+n <- 50
+tibble(group = seq_len(n),
+       alpha = rnorm(n, 136.52, 10),
+       beta = rnorm(n, 0, 10),
+       sigma = rexp(n, 1)) %>%
+  expand(nesting(group, alpha, beta, sigma), year = c(1, 2, 3)) %>%
+  mutate(height = rnorm(n(), alpha + beta * (year - mean(year)), sigma)) %>%
+  ggplot(aes(x = year, y = height, group = group)) +
+  geom_line() +
+  labs(x = "Year", y = "Height")+
+  theme_classic()
+```
+
+The slope is very vague.
+
+
+**4-5.** (a) Now suppose I remind you that every student got taller each year. Does this information lead
+you to change your choice of priors? How? Again, simulate from the priors and plot.
+(b) Now suppose I tell you that the variance among heights for students of the same age is never
+more than 64cm. How does this lead you to revise your priors?
+
+```{r 4-5}
+set.seed(100)
+
+n <- 50
+tibble(group = seq_len(n),
+       alpha = rnorm(n, 136.52, 10),
+       beta = rnorm(n, 2, 10),
+       sigma = rexp(n, 1)) %>%
+  expand(nesting(group, alpha, beta, sigma), year = c(1, 2, 3)) %>%
+  mutate(height = rnorm(n(), alpha + beta * (year - mean(year)), sigma)) %>%
+  ggplot(aes(x = year, y = height, group = group)) +
+  geom_line() +
+  labs(x = "Year", y = "Height")+
+  theme_classic()
+
+```
+
+**4-6.** In the chapter, we used 15 knots with the cherry blossom spline. Increase the number of knots
+and observe what happens to the resulting spline. Then adjust also the width of the prior on the
+weights—change the standard deviation of the prior and watch what happens. What do you think
+the combination of knot number and the prior on the weights controls?
+
+```{r 4-6}
+
+```
+
+

@@ -1,0 +1,755 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# import data 
+
+```{r}
+NY_death = read.csv('./NY_death.csv')
+
+dim(NY_death)
+```
+
+#convert date
+
+
+#
+```{r}
+NY_death$date = as.Date(NY_death$date, format = "%Y-%m-%d")
+
+head(NY_death$date)
+
+summary(NY_death$date)
+```
+
+# selected columns
+
+
+```{r}
+cols = c('Male_age65plus', 'ICU.Beds', 'Median_Household_Income_2018', 'Total.Hospitals..2019.', 'Employed_2018', 
+         'Unemployed_2018', 'Percent.of.adults.with.less.than.a.high.school.diploma.2014.18',
+       "Percent.of.adults.with.a.bachelor.s.degree.or.higher.2014.18", 'confirmed', 'Housing.units',
+     'Cardiovascular.Disease..AAMC.', 'Pulmonary.Disease..AAMC.')
+```
+
+# size of the key columns
+
+```{r}
+length(cols)
+```
+
+
+# import libraries
+
+```{r}
+library(GGally)
+library(reshape2)
+library(ggplot2)
+library(grid)
+
+library(zoo)
+```
+
+# clean the data
+
+```{r}
+
+print('before fixing the NaN values ...........................................................')
+apply(NY_death, 2, function(x){sum(is.na(x))}) # check the missing column
+
+# use forward fill for NaN
+NY_death = na.locf(na.locf(NY_death), fromLast = TRUE)
+
+
+print('after fixing the NaN values ...........................................................')
+apply(NY_death, 2, function(x){sum(is.na(x))}) # check the missing column
+```
+
+
+# remove the outliers
+
+```{r}
+
+
+NY_death_2020 = subset(NY_death, format.Date(date, "%Y")=="2020")
+NY_death_2021 = subset(NY_death, format.Date(date, "%Y")=="2021")
+
+# calculate mahal distance 2020
+mahal_score2020 = mahalanobis(NY_death_2020[, cols],
+         colMeans(NY_death_2020[, cols], na.rm=TRUE),
+         cov(NY_death_2020[, cols]), use="pairwise.complete.obs",tol=1e-26)
+
+
+summary(mahal_score2020)
+
+cutoff_2020 = qchisq(0.999, ncol(NY_death_2020[, cols]))
+
+print(cutoff_2020)
+
+NY_death_2020_new = subset(NY_death_2020, mahal_score2020 < cutoff_2020)
+
+
+
+
+mahal_score2021 = mahalanobis(NY_death_2021[, cols],
+         colMeans(NY_death_2021[, cols], na.rm=TRUE),
+         cov(NY_death_2021[, cols]), use="pairwise.complete.obs",tol=1e-26)
+
+
+# summary(mahal_score2021)
+
+cutoff_2021 = qchisq(0.999, ncol(NY_death_2021[, cols]))
+
+print(cutoff_2021)
+
+NY_death_2021_new = subset(NY_death_2021, mahal_score2021 < cutoff_2021)
+```
+
+
+# check for linearity
+
+```{r}
+dim(NY_death_2020_new[, cols])
+random_data = rchisq(nrow(NY_death_2020_new[, cols]), 7)
+#fake regression
+fake_data2020 = lm(random_data~., data = NY_death_2020_new[, cols])
+
+standardized2020 = rstudent(fake_data2020)
+fit_value2020 = scale(fake_data2020$fitted.values)
+
+plot(fake_data2020, 2, main = 'data QQ plot: 2020')
+
+
+dim(NY_death_2021_new[, cols])
+random_data = rchisq(nrow(NY_death_2021_new[, cols]), 7)
+#fake regression
+fake_data2021 = lm(random_data~., data = NY_death_2021_new[, cols])
+
+standardized2021 = rstudent(fake_data2021)
+fit_value2021 = scale(fake_data2021$fitted.values)
+
+plot(fake_data2021, 2, main = 'data QQ plot: 2021')
+
+
+print('overall the distribution look fine. There is a slight positive skewness')
+
+```
+
+# check normality
+
+```{r}
+print('hist 2020')
+hist(standardized2020, breaks = 100)
+print('hist 2021')
+hist(standardized2021, breaks = 100)
+
+library(moments)
+print('skewness check for 2020')
+skewness(NY_death_2020_new[, cols],na.rm=TRUE)
+kurtosis(NY_death_2020_new[, cols],na.rm=TRUE)-3
+
+
+print('skewness check for 2021')
+skewness(NY_death_2021_new[, cols],na.rm=TRUE)
+kurtosis(NY_death_2021_new[, cols],na.rm=TRUE)-3
+```
+
+
+# data screening: check homogeneity/homoscedasticity 
+```{r}
+{plot(fit_value2020, standardized2020)
+abline(0,0)
+abline(v = 0)}
+
+plot(fake_data2020,1)
+```
+
+
+# homogeneity 2021
+```{r}
+{plot(fit_value2021, standardized2021)
+abline(0,0)
+abline(v = 0)}
+
+plot(fake_data2021,1)
+```
+
+
+
+# corrplot 2020 
+```{r}
+library(corrplot)
+print('2020 corrplot')
+
+
+#png('corrplot_2020.png') # dump out to disk
+
+corrplot(cor(NY_death_2020_new[, cols]), type = "upper", tl.pos = "td",
+         method = "circle", tl.cex = 0.5, tl.col = 'black',
+         order = "hclust", diag = FALSE)
+#dev.off() # dump out to disk
+
+```
+
+
+# corrplot 2021
+```{r}
+print('2021 corrplot')
+
+
+#png('corrplot_2021.png')
+
+corrplot(cor(NY_death_2021_new[, cols]), type = "upper", tl.pos = "td",
+         method = "circle", tl.cex = 0.5, tl.col = 'black',
+         order = "hclust", diag = FALSE)
+#dev.off() # dump out disk
+```
+
+
+
+# define the custom plot function and identify the months
+
+
+
+```{r}
+
+all_months = c('03', '04', '05', '06', '07', '08', '09')
+
+#NY_death2020_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2020")
+#NY_death2021_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2021")
+  
+# reference:  https://stackoverflow.com/questions/5861489/r-creating-legend-for-three-data-sets-on-same-graph-using-ggplot  
+my_plot = function(NY_death2020_M, NY_death2021_M, current_col){
+  NY_death2020_M = unique(NY_death2020_M[, c(current_col, 'death_count')])
+  NY_death2021_M = unique(NY_death2021_M[, c(current_col, 'death_count')])
+  
+  x = NY_death2020_M[, current_col]
+  y = NY_death2020_M$death_count
+  
+  x3 = NY_death2021_M[, current_col]
+  y3 = NY_death2021_M[, current_col]
+  
+  p1 = data.frame(x = x, y = y)
+  p3 = data.frame(x = x3, y = y3)
+  
+  zz = melt(list(p20 = p1, p21 = p3), id.vars = 'x')
+  
+  ggplot(zz, aes(x, value, color=L1)) + geom_point() +  ggtitle(paste0(current_col)) +
+    scale_colour_manual("Data", values = c("p20" = "blue", "p21" = "red")) 
+}
+
+
+```
+
+# define custom plot function
+
+
+```{r}
+
+
+my_multiplot = function(NY_death2020_M, NY_death2021_M, cols, month){
+  grid.newpage()
+  
+  #pdf_file_name = paste0('month_', str(month), '.pdf')
+  #pdf(pdf_file_name, height = 11, width = 8.5, paper = "letter")
+  row_size = 3
+  
+  pushViewport(viewport(layout = grid.layout(4,row_size)))
+  vplayout <- function(x,y){viewport(layout.pos.row = x, layout.pos.col = y)}
+  
+  row_index = 1
+  
+  for (count in seq(1, row_size * 4)){
+    col_index = count %% row_size
+    if (col_index == 0){
+      col_index = row_size
+    }
+    
+    
+    
+    my_curr_plot = my_plot(NY_death2020_M, NY_death2021_M, cols[count])
+    print(my_curr_plot, vp = vplayout(row_index, col_index))
+  
+    if (col_index == row_size){
+      row_index = row_index + 1
+    }
+  
+  }
+}
+
+```
+
+# define the models generation function
+```{r}
+# Reference https://stackoverflow.com/questions/17024685/how-to-use-reference-variables-by-character-string-in-a-formula
+
+dfmodels.analysis <- function(df1, df2, type = '') {
+  current_month = months(df1$date[1], abbreviate = T)
+  frm <- 'death_count ~ confirmed'
+
+  if(type == 'environmental') {
+    print('Environment Selected')  
+    # browser()
+    
+    # Using some of the environment variables
+    # Precipitation, Average, Min & Max Temperature
+    precip <- paste(current_month, '.Precipitation...inch',sep = '')
+    avg.temp <- paste(current_month, '.Temp.AVG...F', sep='')
+    min.temp <- paste(current_month, '.Temp.Min...F', sep = '')
+    max.temp <- paste(current_month, '.Temp.Max...F', sep='')
+    
+    predictors <- paste('date',
+                        precip,
+                        avg.temp,
+                        min.temp,
+                        max.temp,
+                        sep = ' + ')
+    frm <- as.formula(paste(frm, predictors, sep = ' + '))
+  }
+  
+  else if(type == 'social') {
+    print('Social Selected')
+    # browser()
+    # Using some of the social and economical variables
+    # Population, 
+    # Total_Male, 
+    # Total_Female
+    # Area.in.square.miles...Total.area
+    # Density.per.square.mile.of.land.area...Population
+    # Civilian_labor_force_2018
+    # Total_households...Average.household.size
+    # Total_households...Average.family.size
+    
+    # Need to add another predictor? Just add a string in the paste function of predictors!
+    predictors <-  paste(
+             'date',
+             'Population',
+             'Density.per.square.mile.of.land.area...Population',
+             'Area.in.square.miles...Total.area',
+             'Total.households',
+             'Total.households..Average.household.size',
+             'Total.households..Average.family.size',
+             # '',
+             sep = ' + ')
+    
+    frm <- as.formula(paste(frm, predictors, sep = ' + '))
+  }
+  
+  # TODO: Need to find and complete healthcare related predictors
+  # else if(type == 'healthcare') {
+  #   print('Healthcare Selected')
+  #   predictors <- paste('', sep = ' + ')
+  #   frm <- as.formula(paste(frm, predictors, sep = ' + '))
+  # }
+  else {
+    print('No types selected. Defaulting to death_count ~ confirmed')
+    frm <- as.formula(paste(frm, 'date', sep = ' + '))
+  }
+
+
+  # set.seed(3)
+  
+  # Sample from the data sets
+  # sample1 <- df1[sample(nrow(df1), 100, replace = FALSE), ]
+  # sample2 <- df2[sample(nrow(df2), 100, replace = FALSE), ]
+  
+  # Then create models from the samples
+  model1 <- lm(frm, df1)
+  model2 <- lm(frm, df2)
+
+  print('DF Model 1 ')
+  print(model1)
+  print(summary(model1, correlation = T))
+  
+  print('DF Model 2')
+  print(model2)
+  print(summary(model2, correlation = T))
+
+  # browser()
+
+  # Let's compare with ANOVA
+  # print(anova(model1, model2))
+  return(list(model1,model2))
+}
+```
+
+
+# draw multiplot on a per month basis
+
+
+```{r}
+month = '02'
+NY_death2020_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2020")
+NY_death2021_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2021")
+
+
+#NY_death2020_M = read.csv('NY_death_2020_Month_2.csv')
+#NY_death2021_M = read.csv('NY_death_2021_Month_2.csv')
+```
+
+
+```{r}
+my_multiplot(NY_death2020_M, NY_death2021_M, cols, month)
+
+```
+
+# linear model
+```{r base model}
+base <- dfmodels.analysis(NY_death2020_M, NY_death2021_M)
+```
+
+
+```{r env}
+env <- dfmodels.analysis(NY_death2020_M, NY_death2021_M, 'environmental')
+```
+
+
+```{r social}
+social <- dfmodels.analysis(NY_death2020_M, NY_death2021_M, 'social')
+```
+
+```{r prediction}
+# sample(nrow(df1), 100, replace = FALSE)
+# We get the first 3 days of the month in out old 
+test_days <-  subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2020" & format.Date(date, '%d') < '04')
+pred.base.mon2 <- predict(base[[2]], test_days)
+
+plot(test_days$date, test_days$death_count)
+abline(pred.base.mon2)
+```
+
+
+
+# draw multiplot on a per month basis
+
+
+```{r}
+month = '03'
+NY_death2020_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2020")
+NY_death2021_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2021")
+
+#NY_death2020_M = read.csv('NY_death_2020_Month_3.csv')
+#NY_death2021_M = read.csv('NY_death_2021_Month_3.csv')
+
+my_multiplot(NY_death2020_M, NY_death2021_M, cols, month)
+```
+
+# linear model
+```{r}
+dfmodels.analysis(NY_death2020_M, NY_death_2021)
+```
+
+
+```{r}
+dfmodels.analysis(NY_death2020_M, NY_death_2021, "environmental")
+```
+
+
+```{r}
+dfmodels.analysis(NY_death2020_M, NY_death_2021, "social")
+```
+
+```{r prediciton}
+
+```
+
+
+# draw multiplot on a per month basis
+
+
+```{r}
+month = '04'
+NY_death2020_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2020")
+NY_death2021_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2021")
+
+#NY_death2020_M = read.csv('NY_death_2020_Month_4.csv')
+#NY_death2021_M = read.csv('NY_death_2021_Month_4.csv')
+
+my_multiplot(NY_death2020_M, NY_death2021_M, cols, month)
+```
+# linear model
+```{r}
+
+```
+
+
+
+# draw multiplot on a per month basis
+
+
+```{r}
+dim(unique(NY_death2020_M))
+dim(unique(NY_death2021_M))
+
+# build the model to utilize all columns
+
+current_col = cols[1]
+
+print(current_col)
+current_df = NY_death2020_M[, c(current_col, 'death_count')]
+current_df = unique(current_df)
+current_df = na.omit(current_df)
+
+plot(current_df[, current_col], current_df$death_count, main = paste0(current_col))
+
+curr_model = lm(current_df$death_count ~ current_df[, current_col])
+summary(curr_model)
+print('-------------------------------------------')
+
+current_col = cols[2]
+
+print(current_col)
+current_df = NY_death2020_M[, c(current_col, 'death_count')]
+current_df = unique(current_df)
+current_df = na.omit(current_df)
+
+plot(current_df[, current_col], current_df$death_count, main = paste0(current_col))
+
+curr_model = lm(current_df$death_count ~ current_df[, current_col])
+summary(curr_model)
+print('-------------------------------------------')
+
+current_col = cols[3]
+
+print(current_col)
+current_df = NY_death2020_M[, c(current_col, 'death_count')]
+current_df = unique(current_df)
+current_df = na.omit(current_df)
+
+plot(current_df[, current_col], current_df$death_count, main = paste0(current_col))
+
+curr_model = lm(current_df$death_count ~ current_df[, current_col])
+summary(curr_model)
+print('-------------------------------------------')
+
+current_col = cols[4]
+
+print(current_col)
+current_df = NY_death2020_M[, c(current_col, 'death_count')]
+current_df = unique(current_df)
+current_df = na.omit(current_df)
+
+plot(current_df[, current_col], current_df$death_count, main = paste0(current_col))
+
+curr_model = lm(current_df$death_count ~ current_df[, current_col])
+summary(curr_model)
+print('-------------------------------------------')
+
+
+current_col = cols[5]
+
+print(current_col)
+current_df = NY_death2020_M[, c(current_col, 'death_count')]
+current_df = unique(current_df)
+current_df = na.omit(current_df)
+
+plot(current_df[, current_col], current_df$death_count, main = paste0(current_col))
+
+curr_model = lm(current_df$death_count ~ current_df[, current_col])
+summary(curr_model)
+print('-------------------------------------------')
+
+current_col = cols[6]
+
+print(current_col)
+current_df = NY_death2020_M[, c(current_col, 'death_count')]
+current_df = unique(current_df)
+current_df = na.omit(current_df)
+
+plot(current_df[, current_col], current_df$death_count, main = paste0(current_col))
+
+curr_model = lm(current_df$death_count ~ current_df[, current_col])
+summary(curr_model)
+print('-------------------------------------------')
+
+current_col = cols[7]
+
+print(current_col)
+current_df = NY_death2020_M[, c(current_col, 'death_count')]
+current_df = unique(current_df)
+current_df = na.omit(current_df)
+
+plot(current_df[, current_col], current_df$death_count, main = paste0(current_col))
+
+curr_model = lm(current_df$death_count ~ current_df[, current_col])
+summary(curr_model)
+print('-------------------------------------------')
+
+
+
+current_col = cols[8]
+
+print(current_col)
+current_df = NY_death2020_M[, c(current_col, 'death_count')]
+current_df = unique(current_df)
+current_df = na.omit(current_df)
+
+plot(current_df[, current_col], current_df$death_count, main = paste0(current_col))
+
+curr_model = lm(current_df$death_count ~ current_df[, current_col])
+summary(curr_model)
+print('-------------------------------------------')
+
+current_col = cols[9]
+
+print(current_col)
+current_df = NY_death2020_M[, c(current_col, 'death_count')]
+current_df = unique(current_df)
+current_df = na.omit(current_df)
+
+plot(current_df[, current_col], current_df$death_count, main = paste0(current_col))
+
+curr_model = lm(current_df$death_count ~ current_df[, current_col])
+summary(curr_model)
+print('-------------------------------------------')
+
+current_col = cols[10]
+
+print(current_col)
+current_df = NY_death2020_M[, c(current_col, 'death_count')]
+current_df = unique(current_df)
+current_df = na.omit(current_df)
+
+plot(current_df[, current_col], current_df$death_count, main = paste0(current_col))
+
+curr_model = lm(current_df$death_count ~ current_df[, current_col])
+summary(curr_model)
+print('-------------------------------------------')
+
+
+current_col = cols[11]
+
+print(current_col)
+current_df = NY_death2020_M[, c(current_col, 'death_count')]
+current_df = unique(current_df)
+current_df = na.omit(current_df)
+
+plot(current_df[, current_col], current_df$death_count, main = paste0(current_col))
+
+curr_model = lm(current_df$death_count ~ current_df[, current_col])
+summary(curr_model)
+print('-------------------------------------------')
+
+current_col = cols[12]
+
+print(current_col)
+current_df = NY_death2020_M[, c(current_col, 'death_count')]
+current_df = unique(current_df)
+current_df = na.omit(current_df)
+
+plot(current_df[, current_col], current_df$death_count, main = paste0(current_col))
+
+curr_model = lm(current_df$death_count ~ current_df[, current_col])
+summary(curr_model)
+print('-------------------------------------------')
+
+
+
+
+
+
+```
+# linear model
+
+
+
+# draw multiplot on a per month basis
+
+
+# 
+```{r}
+month = '05'
+NY_death2020_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2020")
+NY_death2021_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2021")
+
+#NY_death2020_M = read.csv('NY_death_2020_Month_5.csv')
+#NY_death2021_M = read.csv('NY_death_2021_Month_5.csv')
+
+my_multiplot(NY_death2020_M, NY_death2021_M, cols, month)
+```
+
+# linear model
+
+
+
+# draw multiplot on a per month basis
+
+
+```{r}
+month = '06'
+NY_death2020_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2020")
+NY_death2021_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2021")
+
+#NY_death2020_M = read.csv('NY_death_2020_Month_6.csv')
+#NY_death2021_M = read.csv('NY_death_2021_Month_6.csv')
+
+my_multiplot(NY_death2020_M, NY_death2021_M, cols, month)
+```
+
+# linear model
+
+
+
+# draw multiplot on a per month basis
+
+```{r}
+month = '07'
+NY_death2020_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2020")
+NY_death2021_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2021")
+
+#NY_death2020_M = read.csv('NY_death_2020_Month_7.csv')
+#NY_death2021_M = read.csv('NY_death_2021_Month_7.csv')
+
+my_multiplot(NY_death2020_M, NY_death2021_M, cols, month)
+```
+
+
+# linear model
+
+# draw multiplot on a per month basis
+
+```{r}
+month = '08'
+NY_death2020_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2020")
+NY_death2021_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2021")
+
+#NY_death2020_M = read.csv('NY_death_2020_Month_8.csv')
+#NY_death2021_M = read.csv('NY_death_2021_Month_8.csv')
+
+my_multiplot(NY_death2020_M, NY_death2021_M, cols, month)
+```
+
+# linear model
+
+
+
+# draw multiplot on a per month basis
+
+
+```{r}
+month = '09'
+NY_death2020_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2020")
+NY_death2021_M = subset(NY_death, format.Date(date, "%m")==month & format.Date(date, "%Y")=="2021")
+
+#NY_death2020_M = read.csv('NY_death_2020_Month_9.csv')
+#NY_death2021_M = read.csv('NY_death_2021_Month_9.csv')
+```
+
+
+```{r}
+my_multiplot(NY_death2020_M, NY_death2021_M, cols, month)
+```
+#
+# linear model
+```{r}
+
+```
+

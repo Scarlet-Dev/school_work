@@ -1,0 +1,266 @@
+---
+title: 'Entity Recognition + Parsing Assignment'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Be sure to list the group members at the top! This assignment is the first component for your class project. Be sure all group members contribute, *and* each group member must submit the assignment individually. 
+
+You can use either *R* or Python or both for this assignment. You should use the code and packages we used in class assignments, but these can be a mix and match of each computing language. You will add the appropriate type of code chunk for each section depending on the language you pick for that section. 
+
+## Libraries / R Setup
+
+- In this section, include the libraries you need for the *R* questions.  
+
+```{r}
+##r chunk
+library(reticulate)
+library(dplyr)
+```
+
+- In this section, include import functions to load the packages you will use for Python.
+
+```{python}
+##python chunk
+import spacy
+from spacy import displacy
+
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.wsd import lesk
+from nltk.corpus import wordnet as wn
+from nltk.corpus import wordnet_ic
+semcor_ic = wordnet_ic.ic('ic-semcor.dat')
+
+import pandas as pd
+
+import re
+import string
+
+import warnings
+warnings.filterwarnings('ignore')
+
+pd.set_option('display.max_columns', None)
+```
+
+```{python}
+def get_semantic(seq, key_word):
+      # Tokenization of the sequence
+    temp = word_tokenize(seq)
+      
+    # Retrieving the definition 
+    # of the tokens
+    temp = lesk(temp, key_word)
+    return temp.definition()
+```
+
+
+## Import Subtitles
+
+- Import your subtitle data for the movie or TV show that you selected in the course proposal - use the clean version from the previous assignment.
+
+```{python}
+ep1 = ''
+with open("/home/arkane/hu_lectures/anly_520/exports/dub_ep1.txt", "r") as f:
+	ep1 = f.read()
+```
+
+
+## Definitions
+
+- Pick three of your most popular nouns or verbs from your previous assignment. These words would most likely be tied to the theme of your movie/tv show. Use WordNET import the synsets for those terms. 
+
+```{python}
+bug_sets = wn.synsets("bug")
+game_sets = wn.synsets("game")
+player_sets = wn.synsets("player")
+```
+
+```{python}
+print(bug_sets, '\n')
+print(game_sets, '\n')
+print(player_sets, '\n')
+```
+
+
+- How many different definitions do these terms have? 
+ 
+ > The first word, 'bug', has 7 definitions. The second word, 'game' as 14 
+ > different definitions. The third word, 'player' has 5 definitions.
+ 
+- Can you find the definition that appears to match the one from your text? 
+
+```{python}
+bug_df = pd.DataFrame([
+    {"Sysnet": each_synset,
+     "Part of Speech": each_synset.pos(),
+     "Definition": each_synset.definition(),
+     "Lemmas": each_synset.lemma_names(),
+     "Examples": each_synset.examples(),
+     "Hyponyms": each_synset.hyponyms(),
+     "Hypernyms": each_synset.hypernyms()}
+    for each_synset in bug_sets])
+
+bug_df.Definition
+```
+
+> Based on the above definitions for 'bug' we would expect the second definition
+> to be the correct one in this text (`python bug_df.Definition[1]`).
+
+
+```{python}
+game_df = pd.DataFrame([
+    {"Sysnet": each_synset,
+     "Part of Speech": each_synset.pos(),
+     "Definition": each_synset.definition(),
+     "Lemmas": each_synset.lemma_names(),
+     "Examples": each_synset.examples(),
+     "Hyponyms": each_synset.hyponyms(),
+     "Hypernyms": each_synset.hypernyms()}
+    for each_synset in game_sets])
+
+game_df.Definition
+```
+
+> Based on the above definitions for 'game' we woud expect the third definition
+> to be the correct one in this text (`python game_df.Definition[2]`).
+
+```{python}
+player_df = pd.DataFrame([
+    {"Sysnet": each_synset,
+     "Part of Speech": each_synset.pos(),
+     "Definition": each_synset.definition(),
+     "Lemmas": each_synset.lemma_names(),
+     "Examples": each_synset.examples(),
+     "Hyponyms": each_synset.hyponyms(),
+     "Hypernyms": each_synset.hypernyms()}
+    for each_synset in player_sets])
+
+player_df.Definition
+```
+
+> Based on the above definitions for 'player' we woud expect the first 
+> definition to be the correct one on this text 
+> (`python player_df.Definition[0]`).
+
+- Find one of the sentences that use one of your noun or verbs. Using the `lesk` algorithm, can you identify the right definition for that word? 
+
+```{python}
+searched_sentences = re.findall(r"([^.?!]*?player[^.?!]*\.)", ep1)
+
+get_semantic(searched_sentences[1], "player")
+```
+
+> The word definition from the lesk algorithm matched the expected definition as
+> mentioned in the previous section. However, it should be noted that this may
+> not always be the case as the certain words (ie. 'player') can be misidentified
+> due to not enough other tokens to differentiate it from the game-related
+> definition and one of its other definitions.
+
+
+## Entity Recognition
+
+- Use `spacy`'s default model to tag your subtitles with entities.
+
+```{python}
+nlp = spacy.load("en_core_web_sm")
+doc = nlp(ep1)
+```
+
+- Save these entities into a dataframe or list.
+
+```{python, warning=FALSE}
+entsDF = pd.DataFrame(columns=["Text", "Label"])
+
+for ent in doc.ents:
+    new_row = { "Text": ent.text, "Label": ent.label_ }
+    entsDF = entsDF.append(new_row, ignore_index = True)
+
+print(entsDF)
+```
+
+- Calculate the most common types of entities found in your text. 
+
+```{python}
+reentsDF = entsDF.groupby(entsDF.columns.to_list()).size().reset_index().rename(columns={0: 'Count'}).sort_values('Count', ascending=False)
+print(reentsDF)
+```
+
+
+- Do any of the entities tagged surprise you? 
+
+> From the entity analysis we see that the most common entities were the actors 
+> of note in this episode. There were some surprises with the spacy entity 
+> tagger in how it interprets certain words. And example is the acronym 'sao' 
+> where it is considered an online world yet the tagger sees it as both a 
+> location and an organization. One other example is 'vrmmorpg' as it is 
+> technically not a place that one can physically go to but it can be considered
+> a place.
+
+> Also, there are several entities that are 
+> misidentified such as 'dinnertime', 'exp' 'gm', 'hurry' and 'us'. 'exp' and 
+> 'gm' are gamer tersm for mechanics within a game while 'us' is
+> ambiguous in meaning without the knowing the context. The other two 
+> misidentified entities ('dinnertime' and 'hurry') are incorrect for unknown
+> reasons.
+
+## Parsing
+
+- Use `spacy` process the dependencies in your subtitles or tv show. 
+
+```{python, warning=FALSE}
+depDF = pd.DataFrame(columns=["Text", "Dep", "Head Text", "Head POS", "Children"])
+
+for token in doc:
+    new_row = { "Text": token.text, "Dep": token.dep_, 
+    "Head Text": token.head.text, "Head POS": token.head.pos_, 
+    "Children": [child for child in token.children] }
+    depDF = depDF.append(new_row, ignore_index=True)
+    
+print(depDF)
+```
+
+
+- Pick two words (characters/nouns/verbs) from your most popular list from the first assign. Examine the child dependencies for these words.
+
+```{python}
+selected_wordsDF = depDF.loc[(depDF['Text'] == 'created') |
+(depDF['Text'] == 'game')].sort_values('Text', ascending=True)
+print(selected_wordsDF)
+```
+
+> The main dependency for 'created' is ROOT while 'game' has several 
+> dependencies like 'pobj', 'dobj', 'attr' and 'nsubjpass'. 
+
+- What do the dependencies tell you about the concepts you picked? How are these words discussed in the movie/tv show? What information can you use to understand what is happening in the show without watching it? 
+
+> 'created' has a ROOT dependency which means its either the start of a sentence
+> or is the token that tells us what the sentence will focus on.
+
+> 'game' seems to be used more within a sentence in that it is always in
+> relation with another objects while using a preposition to connect the two.
+> However, the objects that it does connect are an important part of the episode.
+
+> The two words used here share a common child, 'nervegear' and by using 
+> the other children we can deduce that the nervegear was created to create an
+> online world game called sao. It should be noted by some of the child tokens
+> under game that the actors in this episode have previous experience
+> playing games of similar nature or theme but the creation of the 'nervegear'
+> seems to be important difference to their previous gaming experiences.
+
+## Interpretation
+
+- Using parsing and entity recognition, we could begin to build a map of the characters and their relationships in the text. What other information could you use from these two techniques to help describe your text using code? 
+
+
+> We should focus on parsing tokens from the entity recognition analysis, specifically
+> those that fall within the PERSON, ORG or GPE categories. We can then perform
+> dependency parsing on these tokens and find children tokens that are shared between
+> the words and iterate over those children to build a connection throught the 
+> episode for what objects are connected/related to each other or actors.
+ 

@@ -1,0 +1,371 @@
+---
+title: "Lab_3"
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r imported libraries, include=FALSE}
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(rattle)
+library(knitr)
+
+library(caret)
+library(dplyr)
+library(BBmisc)
+library(cluster)
+library(NbClust)
+library(class)
+```
+
+```{r loaded data, include=FALSE}
+wholesale <- read.csv('Wholesale_customers_data.csv')
+wine <- read.csv('wine.csv')
+wbcd <- read.csv('wisc_bc_data.csv')
+news <- read.csv("OnlineNewsPopularity_for_R.csv")
+```
+
+```{r user defined functions, include=FALSE}
+top.n.custs <- function (data,cols,n=5) { #Requires some data frame and the top N to remove
+  idx.to.remove <-integer(0) #Initialize a vector to hold customers being removed
+  for (c in cols){ # For every column in the data we passed to this function
+    col.order <-order(data[,c],decreasing=T) #Sort column "c" in descending order (bigger on top)
+    #Order returns the sorted index (e.g. row 15, 3, 7, 1, ...) rather than the actual values sorted.
+    idx <-head(col.order, n) #Take the first n of the sorted column C to
+    idx.to.remove <-union(idx.to.remove,idx) #Combine and de-duplicate the row ids that need to be   removed
+  }
+  return(idx.to.remove) #Return the indexes of customers to be removed
+}
+
+wssplot <- function(data, nc=15, seed=1234){
+  wss <- (nrow(data)-1)*sum(apply(data,2,var))
+  for (i in 2:nc){
+    set.seed(seed)
+    wss[i] <- sum(kmeans(data, centers=i)$withinss)
+  }
+  plot(1:nc, wss, type="b", xlab="Number of Clusters",
+       ylab="Within groups sum of squares")
+  }
+
+# normalize <- function(x) {
+#   return ((x - min(x)) / (max(x) - min(x)))
+# }
+```
+
+## Part 1 - K Means
+
+```{r}
+str(wholesale)
+
+wholesale$Channel <- factor(wholesale$Channel)
+wholesale$Region <- factor(wholesale$Region)
+
+summary(wholesale)
+```
+
+```{r}
+#How Many Customers to be Removed?
+top.custs <-top.n.custs(wholesale, cols=3:8, n=5)
+print(length(top.custs))
+```
+
+```{r}
+wholesale[top.custs, ]
+
+wholesale.no.top.5 <- wholesale[-c(top.custs),]
+set.seed(76964057)
+
+k <- kmeans(wholesale.no.top.5[,-c(1,2)], centers = 5)
+k$centers
+k$betweenss
+k$withinss
+
+n_clusters <- as.data.frame(table(k$cluster))
+colnames(n_clusters) <- c('Cluster', 'Data.Points.Count')
+```
+
+```{r}
+rng<-2:20 #K from 2 to 20
+tries <-100 #Run the K Means algorithm 100 times
+avg.totw.ss <-integer(length(rng)) #Set up an empty vector to hold all of points
+
+for(v in rng){ # For each value of the range variable
+  v.totw.ss <-integer(tries) #Set up an empty vector to hold the 100 tries
+  for(i in 1:tries){
+    k.temp <-kmeans(wholesale.no.top.5,centers=v) #Run kmeans
+    v.totw.ss[i] <-k.temp$tot.withinss#Store the total withinss
+  }
+  avg.totw.ss[v-1] <-mean(v.totw.ss) #Average the 100 total withinss
+}
+```
+
+```{r}
+plot(rng,avg.totw.ss,type="b", main="Total Within SS by Various K",
+     ylab="Average Total Within Sum of Squares",
+     xlab="Value of K")
+```
+
+\newpage
+
+**Given this is an imperfect real-world, you need to determine what you believe is the best value for "k" and write-up this portion of your lab report.**
+
+*You should include a brief discussion of your k-Means analysis as well as the best value of "k" that you determine. You should include what mixture of variables within the clusters that this value of "k" results in. That is, you need to interpret your k-Means analysis and discuss what it means.*
+
+In Part 1 we performed an K-Means analysis on the wholesale dataset. Before the analysis, we processed the data to remove the top 5 customers. The top 5 customers would be considered outliers and due to the nature of this algorithm they must be removed. After removing the outliers we omitted the first and second (Channel & Region since they are factors) and performed the analysis.
+
+Initially, we used 5 as a random K value. This initial value may not have been correct based on the above plotted graph. Using the elbow method we look for a 'turning point' in the line and determine the k value from there. The more suitable k value for this model may have been 3. This is also supported by the reported iterations
+
+**How many points do you see in each cluster?**
+
+`r kable(n_clusters, col.names=c("Clusters (k)", "Data Points"), align = "cc")`
+
+## Part 2 - Clustering
+
+```{r Exploring the Data}
+df <- scale(wine[-1])
+
+#Examine the data frame and plot the within sum of squares
+head(df)
+wssplot(df)
+```
+
+```{r K-Means Analysis}
+#Start the k-Means analysis using the variable "nc" for the number of clusters
+set.seed(1234)
+nc <- NbClust(df, min.nc=2, max.nc = 15, method = "kmeans")
+print(table(nc$Best.n[1,]))
+barplot(table(nc$Best.n[1,]), xlab = "Number of Clusters", ylab = "Number of Criteria", main =
+          "Number of Clusters Chosen by 26 Criteria")
+```
+
+```{r Cluster Input}
+#Enter the best number of clusters based on the information in the table and barplot
+# n <- readline(prompt = "Enter the best number of clusters: ")
+# n <- as.integer(n)
+n <- 3
+```
+
+```{r Conduct the k-Means analysis using the best number of clusters}
+set.seed(1234)
+fit.km <- kmeans(df, n, nstart=25)
+print(fit.km$size)
+print(fit.km$centers)
+print(aggregate(wine[-1], by=list(cluster=fit.km$cluster), mean))
+```
+
+```{r Use a confusion or truth table to evaluate how well the k-Means analysis performed}
+ct.km <- table(wine$Wine, fit.km$cluster)
+print(ct.km)
+```
+
+```{r Generate a plot of the clusters using cluster package}
+clusplot(df, fit.km$cluster, main='2D representation of the Cluster solution',
+         color=TRUE, shade=TRUE,
+         labels=2, lines=0)
+```
+
+*You will need to write-up this portion of your lab report to include a brief description of the k-Means analysis conducted and the results of the k-Means analysis conducted. Make sure you understand the clusters you find from this k-Means analysis. You will use them in the next part of the lab as the "labels" for the observations in the dataset.*
+
+In Part 2 we performed another K-Means analysis using the wine dataset. Before we can perform the analysis there are some preprocessing steps that must be performed. First we must normalize all numerical values in the dataset and exclude all non-numeric types from this new dataset. This is because the K-Means algorithm can only perform on numerical data.
+
+After scaling the data we used created a plot of number of clusters (k) against the within-groups. From there we saw at the 'turning point' a k value of 3. To confirm that this is the optimal value we performed another test using the NbCluster package. This package iterates over the data several times using different k-values and feeding these points to several Criterias. The results show that the majority of the Criterias chose cluster size 3 as the optimal cluster size. We then continued the analysis by performing the K-Means algorithm using the established k value and returned the results.
+
+## Part 3 - Classification using K-Means
+
+```{r Set-up to train a model for classification of wines using rpart}
+df <- data.frame(k=fit.km$cluster, df)
+print(str(df))
+```
+
+```{r Randomize the dataset}
+rdf <- df[sample(1:nrow(df)), ]
+print(head(rdf))
+train <- rdf[1:(as.integer(.8*nrow(rdf))-1), ]
+test <- rdf[(as.integer(.8*nrow(rdf))):nrow(rdf), ]
+```
+
+```{r Train the classifier and plot the results}
+fit <- rpart(k ~ ., data=train, method="class")
+```
+
+```{r Create plot using rpart.Plot and RColorBrewer and rattle}
+fancyRpartPlot(fit)
+```
+
+```{r Now use the predict() function to see how well the model works}
+pred <- predict(fit, test, type="class")
+(p2 <- prop.table(table(pred, test$k)))
+(Accuracy_2 <- round((sum(diag(p2))/sum(p2) * 100), 2))
+(Misclassification_2 <- round((100 - Accuracy_2), 2))
+```
+
+*This is of particular interest because, if you compare the original wine dataset from UCI with the classes assigned based on the k-Means clustering results, you'll see that there are some "misclassifications" due to the cluster assignments. In your written report for this part of the lab you need to include some discussion of what you think the impact of this misclassification is. For example, do misclassifications due to the cluster assignments flow through the entire analysis. Can the extent any error in the model due to these misclassifications be estimated? By that I mean can you estimate the number or percentage of future misclassifications made by the model based on the error that will propagate through the model from the cluster analysis?*
+
+*Therefore, in your written report include a brief discussion of the analysis you conducted for Part III of this lab. Be sure to include a discussion of your evaluation of the model as you discuss the results of this analysis. And, include a discussion of any known errors and their impact on future predictions using this classification model.*
+
+Since K-Means cannot be used in a direct prediction we created a model using the Decision Tree algorithm. After splitting, training and generating predictions using the K-Means cluster data, we then created a decision tree model and finally evaluated the model. Within the decision tree model we have a possible prediction of 86.49% that the model could accurately predict the wine type.
+
+It should be noted that the prediction made by this model is susceptible to misclassifications error. A misclassification in the model is where the model incorrectly classified the response variable. This type of error can occur when data points in clusters overlap or due to their distance during the aggregation stage may have been placed into an incorrect cluster. To calculate a misclassification we find the difference (1 - Accuracy). In this case the misclassification rate in the model is 13.51%
+
+## Part 4a - Clustering and KNN
+
+**Load the dataset of breast wbcd. Do the preliminary analysis and implement a KNN (K-nearest neighbors) model for this dataset and don't forget that whenever it is required you should use: set.seed(12345). For designing the model, use following command:**
+
+`knn(train = <training features>, test = <testing features>, cl=<training labels>, k = custom value)`
+
+```{r}
+str(wbcd)
+summary(wbcd)
+
+wbcd_proc <- wbcd[-1]
+wbcd_proc$diagnosis <- factor(wbcd_proc$diagnosis, labels = c("Benign","Malignant"), levels = c("B", "M"))
+
+round(prop.table(table(wbcd_proc$diagnosis)) * 100, 2)
+
+# Scales the data from -2 to 4. Data is skewed but still works well
+df2 <- as.data.frame(scale(wbcd_proc[-1]))
+
+# Data is mostly normal. Data is now between 0 - 1. Distribution shape has not changed
+# Data does not need to be normalized
+# df3 <- as.data.frame(lapply(wbcd_proc[-1], normalize))
+
+# Preference to use scaling instead
+```
+
+```{r}
+# Starting the analysis
+set.seed(12345)
+wbcd.nc <- NbClust(df2, min.nc = 2, max.nc = 15, method = 'kmeans')
+print(table(wbcd.nc$Best.nc[1,]))
+```
+
+```{r}
+barplot(table(wbcd.nc$Best.n[1,]), xlab = "Number of Clusters", ylab = "Number of Criteria", main =
+          "Number of Clusters Chosen by 26 Criteria")
+```
+
+
+```{r}
+# Based on results from both the NbCluster and barplot we can assert that k = 2.
+# This is supported by the indices, where a majority (11) proposed k = 2 as the 
+# best number of clusters and accordingly the majority rule favors k = 2.
+
+# Create 80/20 split and randomly select. Sample is not large enough for straight access
+wbcd.index <- createDataPartition(wbcd_proc[,1], p = 0.8, list = FALSE)
+
+# Remove the diagnosis variable
+wbcd.train <- wbcd_proc[wbcd.index, -1]
+wbcd.test <- wbcd_proc[-wbcd.index, -1]
+
+# Use diagnosis variable as labels
+wbcd.train.labels <- wbcd_proc[wbcd.index, 1]
+wbcd.test.labels <- wbcd_proc[-wbcd.index, 1]
+
+# Check proportions
+prop.table(table(wbcd.train.labels) * 100)
+prop.table(table(wbcd.test.labels) * 100)
+# Proportions are similar across both training and testing datasets
+```
+
+```{r}
+# Create KNN model using k = 2
+wbcd.knn <- knn(train = wbcd.train, test = wbcd.test, cl = wbcd.train.labels, k = 2)
+```
+
+```{r}
+table(wbcd.knn)
+```
+
+```{r}
+# Evaluation
+(wbcd_tbl <- table(wbcd.knn, wbcd.test.labels))
+(Accuracy_3 <- round((sum(diag(wbcd_tbl))/sum(wbcd_tbl) * 100), 2))
+(Misclassification_3 <- round((100 - Accuracy_3), 2))
+```
+
+In Part 4a we performed a Cluster/KNN Analysis and created a classification model using the Wisconsin Breast Cancer Diagnosis dataset with the diagnosis feature as our response variable. After preprocessing (scaling, factoring 'diagnosis') we performed the Cluster Analysis and produced a bar chart. Within the bar chart we identify 2 being the optimal k-value thanks to the majority rule. Next, we built a KNN model after sampling for a 80/20 training and testing set split and created the related response labels. Finally, we used the KNN model and tested it prediction accuracy. From the results the KNN model had a prediction accuracy of 89.38% and a misclassification rate of 10.62%.
+
+## Part 4b - Online News Popularity
+
+**Now let's get back to our problem of news popularity and see if we can apply KNN (K-nearest neighbors) to improve the accuracy of the model. Use the same strategy of training and testing that we did on first 2 labs, and don't forget that whenever it is required you should use: set.seed(12345). Use PCA to reduce the number of features.**
+
+```{r}
+# Only selecting the integer/numbers and the response variable
+newsShort <- data.frame(news$n_tokens_title, news$n_tokens_content, 
+                        news$n_unique_tokens, news$n_non_stop_words, 
+                        news$num_hrefs, news$num_imgs, news$num_videos, 
+                        news$average_token_length, news$num_keywords, 
+                        news$kw_max_max, news$global_sentiment_polarity, 
+                        news$avg_positive_polarity, news$title_subjectivity, 
+                        news$title_sentiment_polarity, news$abs_title_subjectivity, 
+                        news$abs_title_sentiment_polarity, news$shares)
+
+colnames(newsShort) <- c("n_tokens_title", "n_tokens_content", "n_unique_tokens", 
+                         "n_non_stop_words", "num_hrefs", "num_imgs", "num_videos", 
+                         "average_token_length", "num_keywords", "kw_max_max", 
+                         "global_sentiment_polarity", "avg_positive_polarity", 
+                         "title_subjectivity", "title_sentiment_polarity", 
+                         "abs_title_subjectivity", "abs_title_sentiment_polarity", 
+                         "shares")
+
+newsShort$shares <- as.factor(ifelse(newsShort$shares > 1400, 'yes', 'no'))
+
+prop.table(table(newsShort$shares)) * 100
+```
+
+```{r}
+# First normalize using BBmisc.normalize
+news.normal <- as.data.frame(lapply(newsShort[-17], normalize))
+
+# PCA Section
+news.pca <- preProcess(x = news.normal, method = c("pca"))
+news.normal.pca <- predict(news.pca, news.normal %>% na.omit())
+print(str(news.normal.pca))
+```
+
+```{r}
+set.seed(12345)
+# Create a random 1000 sample from the PCA and normalized data
+newsRand <- news.normal.pca[order(runif(1000)), ]
+
+# Do a 80/20 split
+news.train <- newsRand[1:800,]
+news.test <- newsRand[801:1000,]
+
+# Using the same index get the shares response variable, Split with 80/20
+news.train.labels <- newsShort[row.names(newsRand[1:800,]), 17]
+news.test.labels <- newsShort[row.names(-newsRand[801:1000,]), 17]
+
+# Check proportions. Should expect some difference with certain variables being dropped
+prop.table(table(news.train.labels)) * 100
+prop.table(table(news.test.labels)) * 100
+```
+
+```{r}
+# Next, find the number of clusters
+news.sample.normal <- news.normal[row.names(newsRand),]
+news.kCluster <- NbClust(news.sample.normal, min.nc = 2,
+                         max.nc = 15, method = 'kmeans')
+
+```
+
+```{r}
+# Perform KNN
+news.knn.predict <- knn(train = news.train, test = news.test, 
+                        cl = news.train.labels, k = 2)
+```
+
+```{r}
+# Evaluate the model
+(p4 <- table(news.knn.predict, news.test.labels))
+(NewsAccuracy <- sum(diag(p4))/sum(p4) * 100)
+(NewsMisclassification <- 100 - NewsAccuracy)
+```
+
+In Part 4, we evaluated the Online News Popularity dataset using the 'shares' features as a response variable. Before the analysis we performed data preprocessing by removing non-numeric type features, factorizing the 'shares' feature, normalize the numeric data type features and finally a PCA test to shrink the dimensions of the data. Due to the size of this dataset (# of observations ~ 40,000) we sampled 1000 observations. Then we created a 80/20 split and recorded the 'shares' labels for both test and training data. A cluster analysis was performed and evaluated the k value as 2 based on a majority vote. A KNN prediction model using a cluster size of 2 was created and trained. The subsequent prediction model was tested using the test dataset and labels. The accuracy rate of this model was 53.5% with a misclassification rate of 46.5%.

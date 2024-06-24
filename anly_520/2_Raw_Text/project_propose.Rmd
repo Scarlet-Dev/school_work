@@ -1,0 +1,25 @@
+---
+title: 'Course Project Proposal'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Be sure to list the group members at the top!
+
+## Topic
+
+This project, I will be examining the Japanese animated television series Sword Art Online "SAO" by comparing the two available versions of the show, the original English dub of the series and the fan parody/abridge version. Sword Art Online is a 27 volume light-novel series written by Reki Kawahara that had its first anime adaptation in 2012. The anime series has a total of 3 seasons with season 1 (2012) having 26 episodes split into 2 story arcs. I will focus on season 1, episodes 2, 5, 9, 12 and the mirrored abridged series episodes.
+
+## Problem or Question
+
+The purpose of this project is to study how effective parodies of works of art and media, especially in the anime community, is essential to the development of the fanbase and also to provide a meta commentary of elements and features within the media. Some of the questions that we can ask are:
+
+- How does the parody differ to the original sub?
+- Are there any significant changes to the plot/story between the two versions?
+- What changes have the parody writers made to the stories characters?
+- What makes an abridged/parody series more popular than the original?

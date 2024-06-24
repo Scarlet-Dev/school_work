@@ -1,0 +1,148 @@
+---
+title: 'Network Models'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load the libraries + functions
+
+Load all the libraries or functions that you will use to for the rest of the assignment. It is helpful to define your libraries and functions at the top of a report, so that others can know what they need for the report to compile correctly.
+
+```{r libaries}
+##r chunk
+library(gutenbergr)
+library(stringr)
+library(dplyr)
+library(tidyr)
+library(ngram)
+library(tidytext)
+library(widyr)
+library(ggraph)
+library(ggplot2)
+library(igraph)
+```
+
+## The Data
+
+Choose one of the books below. The code to download and structure the books has been provided for you, so all you would need to do is *change out* the title. 
+
+- Book Titles:
+    - Crime and Punishment
+    - Pride and Prejudice
+    - A Christmas Carol
+    - The Iliad
+    - The Art of War
+    - An Inquiry into the Nature and Causes of the Wealth of Nations
+    - Democracy in America — Volume 1
+    - Dream Psychology: Psychoanalysis for Beginners
+    - Talks To Teachers On Psychology; And To Students On Some Of Life\'s Ideals
+
+```{r project_g}
+##r chunk
+##pick one book from the list above
+titles = c('Pride and Prejudice')
+
+##read in those books
+books = gutenberg_works(title %in% titles) %>%
+  gutenberg_download(meta_fields = "title", mirror = "http://mirrors.xmission.com/gutenberg/") %>%
+  mutate(document = row_number())
+
+create_chapters = books %>% 
+  group_by(title) %>%
+  mutate(chapter = cumsum(str_detect(text, regex("\\bchapter\\b", ignore_case = TRUE)))) %>% 
+  ungroup() %>%
+  filter(chapter > 0) %>%
+  unite(document, title, chapter) 
+
+by_chapter = create_chapters %>% 
+  group_by(document) %>% 
+  summarise(text=paste(text,collapse=' '))
+
+#by_chapter
+```
+
+
+
+## Clean up the data
+
+In this section, you want to create a tibble/dataframe of the individual words from your book (use by_chapter$text). Try using `unnest_tokens` (arguments shoud be word, text) and `anti_join` to create a unigram list of words without stopwords included. 
+
+```{r}
+tokenized_texts <- by_chapter %>% 
+    unnest_tokens(word, text) %>% 
+    anti_join(stop_words)
+```
+
+```{r}
+tokenized_texts <- tokenized_texts[-grep("chapter", tokenized_texts$word), ]
+tokenized_texts <- tokenized_texts[-grep("illustration", tokenized_texts$word), ]
+```
+
+
+## Simple statistics
+
+In this section, use the `count` function to determine the most frequent words used in the book that are not stopwords. 
+
+```{r}
+tokenized_texts %>% 
+    count(word, sort = TRUE) %>%  print(n=200)
+```
+
+## Collocates clean up
+
+Create a tibble/dataframe that includes the collocate pairs in the book you picked using `pairwise_count`. The document column is equivalent to id in the lecture example.
+
+```{r}
+tokenized_word_pairs <- tokenized_texts %>% 
+  pairwise_count(word, document, sort = TRUE, upper = FALSE)
+
+head(tokenized_word_pairs, 50)
+```
+
+## Create a network plot
+
+Create a network plot of the collocates - remember you can change the n > XX to a number that keeps a lot of the data, but filters out a lot of the smaller combinations. Set the n value in the filter function to be equal to or less than the highest n value in the word_pairs table.
+
+```{r}
+set.seed(52550)
+tokenized_word_pairs %>%
+  filter(n >= 45) %>%
+  graph_from_data_frame() %>%
+  ggraph(layout = "fr") + #use ?ggraph to see all the options
+  geom_edge_link(aes(edge_alpha = n, edge_width = n), edge_colour = "purple") +
+  geom_node_point(size = 5) +
+  geom_node_text(aes(label = name), repel = TRUE, 
+                 point.padding = unit(0.2, "lines")) +
+  theme_void()
+```
+
+
+## Word Pair Correlations
+
+Calculate the correlations between word pairs to determine the strongest word pairs.
+
+```{r}
+text_cors <- tokenized_texts %>% 
+  group_by(word) %>%
+  filter(n() >= 50) %>%
+  pairwise_cor(word, document, sort = TRUE, upper = FALSE)
+
+head(text_cors, 20)
+```
+
+## Interpretation
+
+- What do the simple statistics and network plots tell you about the book you selected? Interpret your output in a paragraph summarizing your visualizations. 
+
+ - ANSWER: From the plot word count we see in this text elizabeth, bennet, darcy, miss, and jane were the top five most common words found in the text. This could mean that they are the main actors in this book. Additionally the word pairs show that the actors interact with each other often. This can be further supported by the word network where elizabeth is center node and other nodes interact with it.  
+
+
+- Describe a set of texts and research question that interests you that could be explored using this method. Basically, what is a potential application of this method to another area of research? (At least a full paragraph including a definition of the problem or question, the text data that could be used, what the analysis might mean, and why the problem is important.)
+  
+  - ANSWER: One set of texts that interests me is a collection of social media posts around topics of pop culture. The research question that could be explored using networking is how different pop culture topics and memories appear in different forms of media. We could investigate this by collecting posts from the major social media platforms around popular media. Then, using topic modelling and network analysis, we could see connections between these posts based on related topics and see possible connections between different but related topics.
+

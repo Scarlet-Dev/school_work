@@ -1,0 +1,160 @@
+---
+title: 'Logistic Regression'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load the Libraries + Functions
+
+Load all the libraries or functions that you will use to for the rest of the assignment. It is helpful to define your libraries and functions at the top of a report, so that others can know what they need for the report to compile correctly.
+
+Understanding whether a written review is positive or negative can be tricky as the context of what is being reviewed and other factors can impact the sentiment of a review. In this assignment, you will investigate if the words used in a reviews can predict their sentiment. The datasets come from a Kaggle project with labelled sentences which you can check out here [<https://www.kaggle.com/marklvl/sentiment-labelled-sentences-data-set>].
+
+For this assignment, you can pick one of three datasets to analyze: Amazon Reviews, Yelp Reviews, or Movie Reviews. The first column in each dataset is a measure of sentiment of the review (0 = negative, 1 = positive) and the second is the number of tokens (or words) in the review. The rest of the columns are words that were either used (coded as 1) or not used (coded at 0) in the review. The sentiment of the review should be used as your outcome in your binary logistic regression. For your predictors, choose 10-20 words to test if use of those words predicts the sentiment of the review.
+
+```{r libraries}
+#In using VM, you may need to install the packages 'gridExtra', 'htmlwidgets', and 'readxl' first
+library(rms)
+library(dplyr)
+library(visreg)
+library(car)
+
+movie_reviews <- read.csv('./movie reviews.csv')
+```
+
+## Choosing Predictors
+
+-   To create a simple, easy-to-interpret model, pick 10-20 words from one of the dataset which capture features most important to a good product (Amazon reviews), restaurant (Yelp reviews) or movie (Movie Reviews). Think about what words are strongly associated with either positive or negative reviews as well as words that may have different meanings in a positive versus negative review.
+
+-   Which words did you choose as predictors and why?
+
+    -   ANSWER: For the words we will select: character, plot, work, cast, show, scene, film, write, story, actor, script, and watch as they would be common words used in review a movie and should have different sentiments based on how a film is received.
+
+## Running a Binary Logistic Regression
+
+-   Run the logistic regression using the `rms` package. (Answer all questions below after ANSWER: using complete sentences)
+    -   Use the $\chi^2$ test - is the overall model predictive of sentiment? Is it significant?
+
+    -   What is Nagelkerke's pseudo-$R^2$? What does it tell you about goodness of fit?
+
+    -   What is the C statistic? How well are you predicting sentiment?
+
+    -   
+
+        ## ANSWER:
+        1. The model is statistically significant with $\chi^2$ = 52.36 and overall P-value < 0.0001. The model accounts for 7% of the variance of the verb used with a discrimination of C = 0.601.
+        2. Nagelkerke's psuedo R2 measures the goodness of fit of a language model. Within a range of 0 to 1 where higher values indicated better fit of the model to the data. In this model the psuedo R2 = 0.07 which means it explains very little variance in the model.
+        3. The C statistic is a measure of predictive accuracy of a language model and is commonly used in binary classifications problems. The C statistic can have a value between o.5 to 1.0 where higher values means better predictive accuracy. In this model we have a C statistic of 0.61 which means the model's predictive accuracy does work but not very well.
+
+```{r runrms}
+mr1 <- movie_reviews %>% 
+    select(Sentiment, character, plot, work, cast, show, scene, film, write, 
+           story, actor, script, watch)
+
+model <- lrm(Sentiment ~ character + plot + work + cast + show + scene + film +
+             write + story + actor + script + watch, data = mr1)
+
+model
+```
+
+```{r}
+model$stats
+```
+
+
+```{r runrms glm}
+model_glm <- glm(Sentiment ~ character + plot + work + cast + show + scene + film +
+             write + story + actor + script + watch, data = mr1)
+model_glm
+```
+
+## Coefficients
+
+-   Explain each coefficient (i.e. each word you chose) - are they significant? What do they imply if they are significant (i.e., which sentiment does it predict)? (Should be at least a paragraph.)
+
+    -   ANSWER:
+        - character: P-value = 0.0817. P-value is greater than 0.05 making this coefficient statistically not significant. The coefficient affect the prediction making the sentiment positive with a positive coefficient.
+        - plot: P-value = 0.0024. P-value is less than 0.05 making this coefficient statisitcally significant. The coefficient affects the model's prediction, making the sentiment negative with a positive coefficient.
+        - work: P-value = 0.2521. P-value is greater than 0.05 making this coefficient statistically not significant. The coefficient affect the prediction making the sentiment negative with a positive coefficient.
+        - cast: P-value = 0.0030. P-value is less than 0.05 making this coefficient statisitcally significant. The coefficient affects the model's prediction, making the sentiment positive with a positive coefficient. 
+        - show: P-value = 0.4452. P-value is greate than 0.05 making this coefficient statistically not significant. The coefficient affect the prediction making the sentiment positive with a positive coefficient.
+        - scene:  P-value = 0.6618. P-value is greate than 0.05 making this coefficient statistically not significant. The coefficient affect the prediction making the sentiment positive with a positive coefficient.
+        - film: P-value = 0.0016. P-value is less than 0.05 making this coefficient statisitcally significant. The coefficient affects the model's prediction, making the sentiment positive with a positive coefficient.
+        - write: P-value = 0.1509. P-value is greate than 0.05 making this coefficient statistically not significant. The coefficient affect the prediction making the sentiment negative with a positive coefficient.
+        - story: P-value = 0.4387. P-value is greate than 0.05 making this coefficient statistically not significant. The coefficient affect the prediction making the sentiment negative with a positive coefficient.
+        - actor: P-value = 0.4119. P-value is greate than 0.05 making this coefficient statistically not significant. The coefficient affect the prediction making the sentiment positive with a positive coefficient.
+        - script: P-value = 0.0053. P-value is less than 0.05 making this coefficient statisitcally significant. The coefficient affects the prediction making the sentiment  with a positive coefficient.
+        - watch: P-value = 0.6841. P-value is greate than 0.05 making this coefficient statistically not significant. The coefficient affect the prediction making the sentiment negative with a positive coefficient.
+
+## Variable Selection
+
+-   Use *either* a backwards stepwise approach or the drop 1 approach to determine which predictors you would keep in the model.
+
+-   Fit the model with glm function in order to test either approach (but NOT both)
+
+-   Which predictors would you retain?
+
+    -   
+
+        ## ANSWER:
+            - Based on the below variable selection it would be better to retain character + plot + cast + film + write + script as it explains the model better with less variables required while the combination has a lower AIC score (AIC=1319.7) from the original model (AIC = 1328.04).
+
+```{r varselect}
+m <- glm(Sentiment ~ character + plot + work + cast + show + scene + film +
+             write + story + actor + script + watch, family = 'binomial', data = mr1)
+m.bw <- step(m, direction = 'backward')
+```
+
+## Outliers
+
+-   Use the model with glm function in order to test assumptions
+-   Use the `car` library and the `influencePlot()` to create a picture of the outliers.
+    -   Are there major outliers for this data?
+        -   ANSWER:
+            -  Yes there are outliers in the dataset. 
+
+```{r outliers}
+influencePlot(m)
+```
+
+## Assumptions
+
+-   Explore the `vif` values of the model and determine if you meet the assumption of additivity (meaning no multicollinearity).
+-   Are there issues with multicollinearity?
+    -   
+
+        ## ANSWER:
+            - The Variance Inflation Factor (vif) here is around 1 for all the predictor variables which means that the variables do not have any correlations between each other. This also means there is no multicollinearity either.
+
+```{r vif}
+rms::vif(m)
+```
+
+## Test for Overfitting
+
+-   Use the validate function to test for overfitting.
+-   Is there evidence of overfitting?
+    -   
+
+        ## ANSWER:
+            - There is some evidence of overfitting. This can inferred by the R2 scores for both train (R2 = 0.0855) and test (R2 = 0.0571).
+
+```{r overfittest}
+m.boot <- lrm(Sentiment ~ character + plot + work + cast + show + scene + film +
+             write + story + actor + script + watch, x = T, y = T, data = mr1)
+validate(m.boot, B = 100)
+```
+
+## Discussion Question
+
+-   Describe a set of texts and research question that interests you that could be explored using this method. Basically, what is a potential application of this method to another area of research?
+
+    -   
+
+        ## ANSWER: 
+        One set of texts that interests me is a corpus of job postings on LinkedIn. The research question that could be explored using logistic regression is whether the language used in job postings is associated with the posted skill level of the posting. First, we collect the job postings from multiple industries. Then, We use logistic regression to model the probability that a job posting has the same skill level as advertised based on the requirements and responsibilities listed. This analysis could help us identify industries that may have trend of postings with skill levels that differ greatly from their listed requirements.

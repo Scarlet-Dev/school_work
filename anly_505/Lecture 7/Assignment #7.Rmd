@@ -1,0 +1,142 @@
+---
+title: 'Assignment #7'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(rethinking)
+library(dagitty)
+data("tulips")
+d <- tulips
+```
+
+## Chapter 8 - Conditional Manatees
+
+This chapter introduced interactions, which allow for the association between a predictor and an outcome to depend upon the value of another predictor. While you can’t see them in a DAG, interactions can be important for making accurate inferences. Interactions can be difficult to interpret, and so the chapter also introduced triptych plots that help in visualizing the effect of an interaction. No new coding skills were introduced, but the statistical models considered were among the most complicated so far in the book.
+
+Place each answer inside the code chunk (grey box).  The code chunks should contain a text response or a code that completes/answers the question or activity requested. Make sure to include plots if the question requests them.  
+
+Finally, upon completion, name your final output `.html` file as: `YourName_ANLY505-Year-Semester.html` and publish the assignment to your R Pubs account and submit the link to Canvas. Each question is worth 5 points.
+
+## Questions
+
+**8-1.** Recall the tulips example from the chapter. Suppose another set of treatments adjusted the
+temperature in the greenhouse over two levels: cold and hot. The data in the chapter were collected
+at the cold temperature. You find none of the plants grown under the hot temperature developed
+any blooms at all, regardless of the water and shade levels. Can you explain this result in terms of
+interactions between water, shade, and temperature?
+
+```{r 8-1}
+# The tulips blossom are based on the interaction W -> B <- S where blossom is influence by 
+# water and shade (B = f(W,S)). However, with the inclusion of another variable, temperature
+# (T) this affects the relationship between the other variables. With temperature being a 
+# factor of 'cold' or 'hot' we see plants with 'hot' temperatures do not blossom at all regardless
+# of the water and shade levels. 
+
+tulips_dag <- dagitty("dag {
+                      water -> blossom <- shade
+                      water -> blossom
+                      shade -> blossom
+                      temp -> blossom
+}")
+
+coordinates(tulips_dag) <- list(x = c(blossom=0, shade=0.5, temp=0.5, water=0.5),
+                                y = c(blossom=1, shade=0, temp=1, water=2))
+
+drawdag(tulips_dag, lwd = 2, col_arrow = c("gold", "red", "blue"))
+
+# With this, the interaction changes from a two way (Water + Shade) to a three way interaction.
+# (Water + Shade + Temperature) and three two way interactions (WS, WT, ST).
+```
+
+**8-2.** Can you invent a regression equation that would make the bloom size zero, whenever the
+temperature is hot?
+
+```{r 8-2}
+# In the original interaction we had 
+# B_i ~ Normal(mu_i, sig)
+# mu_i = a + Bw(W_i - mu_W) + Bs(S_i - mu_S)
+
+# However, with the addition of temperature the equation would have now include the temperature interactions
+# mu_i = a + (Bw*Wi) + (Bs*Si) + (Bt*Ti) + (Bws*Wi*Si) + (Bwt* Wi*Ti) + (Bst*Si*Ti) + (Bwst*Wi*Si*Ti)
+
+# Since temperature is values as either cold/hot we can make the assumption of it being a boolean value
+# and set them as 0/1
+# We are interested when the bloom size is zero and temperature is hot(1).
+# mu_i = a + Bw*Wi + Bs*Si− aTi − Bws*Wi*Si*Ti + Bws*WiSi − Bw*WiTi − Bs*SiTi
+```
+
+
+**8-3.** Repeat the tulips analysis, but this time use priors that constrain the effect of water to be positive
+and the effect of shade to be negative. Use prior predictive simulation and visualize. What do these prior
+assumptions mean for the interaction prior, if anything?
+
+```{r 8-3}
+d$blooms_std <- d$blooms/max(d$blooms)
+d$water_cent <- d$water - mean(d$water)
+d$shade_cent <- d$shade - mean(d$shade)
+
+bw_d<- abs(rnorm(nrow(d),0,0.25))
+bs_d<- (-abs(rnorm(nrow(d),0,0.25)))
+
+tul_model1 <- quap(
+  alist(
+    blooms ~ dnorm(mu, sig),
+    mu <- a + Bw*water_cent + Bs*shade_cent,
+    a ~ dnorm(0.5, 0.25),
+    Bw ~ dnorm(bw_d), 
+    Bs ~ dnorm(bs_d), 
+    sig ~ dexp(1)
+  ), data = d
+)
+
+precis(tul_model1)
+```
+```{r}
+par(mfrow=c(1,3))
+for (s in -1:1) {
+  idx <- which(d$shade_cent==s)
+  plot( d$water_cent[idx] , d$blooms_std[idx], xlim=c(-1,1), ylim=c(0,1), 
+        xlab="Water", ylab="Blooms", pch=16, col=rangi2)
+  mu <- link(tul_model1, data=data.frame( shade_cent=s , water_cent=-1:1))
+  for (i in 1:20) 
+    lines( -1:1, mu[i,], col=col.alpha("Gray",0.3))}
+```
+
+
+
+**8-4.** Return to the data(tulips) example in the chapter. Now include the bed variable as a predictor
+in the interaction model. Don’t interact bed with the other predictors; just include it as a main
+effect. Note that bed is categorical. So to use it properly, you will need to either construct dummy
+variables or rather an index variable, as explained in Chapter 5.
+
+```{r 8-4, warning=FALSE}
+# Using example on discrete values we coerce the bed values into an index.
+d$bedx <- coerce_index(d$bed)
+
+tul_model2 <- quap(
+  alist(
+    blooms ~ dnorm(mu, sig),
+    mu <- a[bedx] + Bw*water_cent + Bs*shade_cent + Bws*(water_cent*shade_cent),
+    a[bedx] ~ dnorm(130, 100),
+    c(Bw, Bs, Bws) ~ dnorm(0, 100),
+    sig ~ dunif(0, 200)
+  ), data = d,
+  start = list(a = mean(d$blooms), Bw = 0, Bs = 0, Bws = 0, sig = sd(d$blooms))
+)
+
+precis(tul_model2, depth = 2)
+```
+
+**8-5.** Use WAIC to compare the model from 8-4 to a model that omits bed. What do you infer
+from this comparison? Can you reconcile the WAIC results with the posterior distribution of the bed
+coefficients?
+
+```{r 8-5}
+compare(tul_model1, tul_model2, func = WAIC)
+# There is a major difference on the WAIC values between tulip models 1 and 2. Tulip model 1  does not take the bed variable into consideration which may cause more variability in the WAIC value.
+```

@@ -1,0 +1,206 @@
+---
+title: 'Cluster Analysis'
+author: "Akane Simpson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load the libraries + functions
+
+Load all the libraries or functions that you will use to for the rest of the assignment. It is helpful to define your libraries and functions at the top of a report, so that others can know what they need for the report to compile correctly.
+
+```{r libaries}
+##r chunk
+library(cluster)
+library(pvclust)
+library(reticulate)
+
+py_config()
+```
+
+## The Data
+
+The data for this assignment is language styles in movie descriptions (same dataset used in logistic regression lecture). The dataset for this assignment includes the movie's title, genre, and 13 measures of language style described below. The goal of the current assignment is to explore the language styles used in movie descriptions may be used to group movies into coherent clusters.
+
+  Language Styles:
+    - adj: percent of adjectives used
+    - interrog: percent of interrogatives used (e.g. what, how)
+    - number: percent of numbers used
+    - affect: percent of emotion words used
+    - posemo: percent of positive emotion words used
+    - negemo: percent of negative emotion words used
+    - social: percent of social words (e.g. friend, family)
+    - female: percent of references to women
+    - male: percent of references to men
+    - see: percent of words related to vision and seeing
+    - hear: percent of words related to sounds and hearing
+    - feel: percent of words related to feeling and touch
+    - death: percent of words related to death and dying
+
+- Load the data.
+- Use row.names(df) = df$Title to set the rownames as title of the movies from the data.
+- Delete columns 1, 2, and 3 from the data.
+- Flip the data using `t()`, as the clustering variables should be rows in the dataframe.
+
+```{r loaddata}
+##r chunk
+df <- read.csv('./Language Styles of Movies.csv')
+row.names(df) = df$Title
+df <- df[ , -c(1:3)]
+df <- as.data.frame(t(df))
+```
+
+## Create Distances
+
+While the data set includes popular distance measures, we still need to figure out how these distance measures are related to each other. Create distance measures in Euclidean or Manhattan distance. 
+
+```{r distances}
+##r chunk
+df.distance <- dist(df, method = 'manhattan')
+```
+
+## Create Cluster
+
+- Use hierarchical clustering to examine the relatedness of these measures. 
+- Create a dendogram plot of the results. 
+
+Note: If one variable is alone in a cluster, remove it from the data frame and:
+- Rerun the distance and cluster measures.
+- Create a new plot of the cluster analysis (the branches may be hard to see but they are clearly separating out more).
+
+
+```{r cluster}
+##r chunk
+df.hc <- hclust(df.distance, method='ward.D2')
+plot(df.hc, hang = -1)
+```
+
+```{r}
+df2 <- df[-7, ]
+df.distance2 <- dist(df2, method = 'manhattan')
+df.hc2 <- hclust(df.distance2, method = 'ward.D2')
+plot(df.hc2, hang = -1)
+```
+
+
+## Silhouette
+
+- Using `sapply` calculate the average silhouette distances for 2 to n-1 clusters on only the second cluster analysis.
+
+```{r}
+##r chunk
+sapply(2:(nrow(df2)-1), #we can run 2 to n-1 clusters 
+       function(x) summary(
+         silhouette(cutree(df.hc2, k = x),
+                    df.distance2))$avg.width #find the widths
+       )
+```
+
+## Examine those results
+
+- Replot the dendogram with cluster markers based on the highest silhouette value.
+
+```{r replot}
+##r chunk
+{plot(df.hc2, hang = -1)
+rect.hclust(df.hc2, k = 2)}
+```
+
+## Snake Plots
+
+Make a snake plot of the results by plotting a random set of 25-40 movie titles. 
+    - If you have more than two clusters, pick one pair you find interesting.
+
+```{r snakeplot}
+set.seed(2)
+##r chunk
+random_data = df2[ , sample(1:ncol(df2), 25)]
+
+#save the clusters
+clustercut = cutree(df.hc2, k = 2)
+cluster1 = random_data[ names(clustercut[clustercut == 1]), ] #notice rows
+cluster2 = random_data[ names(clustercut[clustercut == 2]), ]
+
+#create the differences
+differences = colMeans(cluster1) - colMeans(cluster2)
+
+{plot(sort(differences)*1, #make room for names on graph
+     1:length(differences), #y axis
+     type = "n", #empty plot + labels
+     xlab = "Cluster 2 < -- > Cluster 1",
+     yaxt = "n", ylab = "")
+text(sort(differences),
+     1:length(differences),
+     names(sort(differences)))}
+```
+
+## Bootstrapping
+
+- Use `pvclust` to validate your solution on the dataframe.
+- Plot the pv cluster. 
+- Include and run the following line: cluster_labels <- rownames(df)
+
+```{r pvc}
+df.pvc <- pvclust(t(df2), method.hclust = 'ward.D2', method.dist = 'manhattan')
+plot(df.pvc, hang = -1)
+```
+
+## Working with Python
+
+- Load the Python libraries and import the dataset from R. 
+
+```{r}
+cluster_labels <- rownames(df2)
+```
+
+```{python load_everything}
+import scipy.cluster.hierarchy as sch
+from sklearn.cluster import AgglomerativeClustering
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
+from sklearn import metrics
+from scipy.cluster.hierarchy import fcluster
+
+sim_data = r.df2 
+#create distances
+sim_dist = sch.linkage(sim_data, method='ward')
+```
+
+- Create a dendogram of the variables.
+
+```{python py_dendogram}
+plt.figure()
+plt.title("Hierarchical Clustering Dendogram")
+plt.xlabel("Causal Variable")
+plt.ylabel("Distance")
+
+sch.dendrogram(sim_dist, #distance
+              leaf_rotation=90., leaf_font_size=8.,
+              labels = r.cluster_labels)
+plt.show()
+```
+
+- Calculate the silhouette silhouette distances for 2 to n-1 clusters.
+
+```{python silhouette2}
+max_d = 2
+clusters = fcluster(sim_dist, max_d, criterion='maxclust')
+clusters
+```
+
+
+## Interpretation
+
+- Interpret the results. Write at least one full paragraph explaining what can be learned from the analysis.
+  - ANSWER: 
+    - From the cluster analysis we have two groups of clusters. Cluster 1 has three members 'male', 'adj' and 'affect'. Cluster 1 has a percentage of adjectives used, percent of references to men and percent of emotion words used. This could mean that a percentage of males had adjectives and emotional words used towards them in the various texts. Cluster 2 has nine members 'interrog', 'number', 'posemo', 'negemo', 'social', 'female', 'see', 'hear', 'feel' and 'death'. Cluster 2 could be thought of as more descriptive associations of nature, society and the human senses, to that of women. Both suggest less distinction between these types of measures in each clusters. The snake plot captures movie titles based on their descriptions where more movies fall into Cluster 2 while fewer movies fall into Cluster 1. It should be noted that some movie descriptions fell inbetween the two clusters. This may be some relationships between Cluster 1 and 2 that exits only within some texts.
+
+  
+- Describe a set of texts and research question that interests you that could be explored using this method. Basically, what is a potential application of this method to another area of research?
+  - ANSWER: 
+    - A set of texts one could explore are fiction books related to sci-fi. The research question could be explored is whether there is a significant difference in overlap of themes and lore in these fantasy novels. The dataset would be the book title, number if in a series, and the text. We would then sample from each text for paragraphs or sentences that go into detail about the fantasy setting. We then perform cluster analysis (k-means) that would cluster books that share similar themes and lore to to see if there are any overlaps. This would help to identify what books share these similar characteristics.

@@ -1,0 +1,99 @@
+---
+title: "Bootstrapping, Effect Sizes, and Nonparametric Regression"
+author: "student name"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load the Libraries + Functions
+
+Load all the libraries or functions that you will use to for the rest of the assignment. It is helpful to define your libraries and functions at the top of a report, so that others can know what they need for the report to compile correctly.
+
+```{r load libraries}
+
+```
+
+For this assignment, you will use the same Congressional data shown in the lecture and will use the same bootstrapping method to test another DV (you can use any column after WC). The goal of the larger project, that this data is drawn from, was to predict how a member of Congress might vote on a bill from the words they used in their speech. In the lecture I showed you the results of a composite complexity measure, here I want you to test differences in supporters and opposers of the bill by analyzing a different aspect of their language. Columns 14 to 93 are based on output of LIWC2007. These columns are dictionary-based language measures indicating how much of a text (in this case a Congressional speech) falls into each dictionary. Pick a column as your DV to complete the assignment. To learn more about what the columns mean, check out this [link](https://www.liwc.net/LIWC2007LanguageManual.pdf). To learn about the newer version of the LIWC software, check out this [link](http://liwc.wpengine.com/wp-content/uploads/2015/11/LIWC2015_LanguageManual.pdf).
+
+## Load the Data
+Load both datasets for the assignment
+
+```{r data}
+
+```
+
+## Initialize the Bootstrap Function
+Here is the bootstrap function to use. Don't change anything, just run the code chunk.
+
+```{r bootstrap function}
+bootstrap_values <- function(formula, dataset, nsim){
+  
+  store_mean <- rep(NA, nsim)
+  store_sd <- rep(NA, nsim)  
+  attempts <- 0
+  #loop until you have enough
+  while(attempts < nsim){
+    
+    #create a dataset
+    d <- dataset[sample(1:nrow(dataset), 
+                        size = nrow(dataset),
+                        replace = TRUE), ]
+    #test the model
+    tryCatch({
+    
+      model1 = lme(formula, 
+             data = d, 
+             method = "ML", 
+             na.action = "na.omit",
+             random = list(~1|Name),
+             control=lmeControl(opt = "nlminb")) 
+      meanvalue = summary(model1)$tTable[1]
+      sdvalue = summary(model1)$tTable[2] * sqrt(nrow(d))
+      attempts <- attempts + 1
+      store_mean[attempts] <- meanvalue
+      store_sd[attempts] <- sdvalue
+      return(store_mean, store_sd, attempts)
+    }, error = function(x){})
+  }
+  
+  return(list("mean" = store_mean, "sd" = store_sd))
+}
+```
+
+## Testing Difference in House Data
+With the houseIraq data, use the code from the lecture, but replace the word 'complexity' with the name of the column you are using as your DV.
+
+```{r house}
+
+```
+
+## Testing Difference in Senate Data
+With the senateIraq data, use the code from the lecture, but replace the word 'complexity' with the name of the column you are using as your DV.
+
+```{r senate}
+
+```
+
+## Interpret the Results
+
+- QUESTION: Did you find differences in your chosen DV? What were the differences and were they consistent across the two datasets?
+
+- ANSWER:
+
+## Discussion Questions
+
+- QUESTION: Why do you think it would be important to consider effect sizes when doing analytics in industry? How do you think the topics this week relate to your current or future career? (Write at least a full paragraph)
+
+  - ANSWER: 
+
+- QUESTION: Describe a set of texts and research question that interests you that could be explored using bootstrapping. Basically, what is a potential application of bootstrapping to another area of research?
+  
+  - ANSWER: 
+
+- QUESTION: Describe a set of texts and research question that interests you that could be explored using nonparametric regression. Basically, what is a potential application of nonparametric regression to another area of research?
+  
+  - ANSWER: 
