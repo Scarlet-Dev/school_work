@@ -1,8 +1,14 @@
 .Rproj.user
+*.Rproj.user
 .Rprofile
+*.Rprofile
 .Rhistory
+*.Rhistory
 .RData
+*.RData
 .Ruserdata
+*.Ruserdata
+*.Rproj
 *.csv
 *.xlxs
 *.xls
@@ -12,5 +18,6 @@
 *.doc
 *.docx
 .vscode
-.zip
-./renv
+*.zip
+*.sav
+.renv
