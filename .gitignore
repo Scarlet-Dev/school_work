@@ -1,0 +1,16 @@
+.Rproj.user
+.Rprofile
+.Rhistory
+.RData
+.Ruserdata
+*.csv
+*.xlxs
+*.xls
+*.ods
+*.odt
+*.pdf
+*.doc
+*.docx
+.vscode
+.zip
+./renv
